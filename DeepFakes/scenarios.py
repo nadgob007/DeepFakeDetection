@@ -3,12 +3,15 @@ from DeepFakes.functions import *
 """
      сценарий для полной обработки (БПФ, Азимутальное усреднение)
 """
-def scenario1 (initial_params):
+
+
+def scenario1(initial_params):
     path = initial_params['path']
 
     a = 0  # Подаются пути к данным, создаются txt файлы с psd. Использовать для перерасчёта.
     if a == 1:
-        data_to_psd(initial_params['all_images'], initial_params['size_of_sample'], initial_params['p'], path + '\\true', path + '\\false', path + '\\split')
+        data_to_psd(initial_params['all_images'], initial_params['size_of_sample'], initial_params['p'],
+                    path + '\\true', path + '\\false', path + '\\split')
 
     b = 1  # Классификация по имеющимся txt файлам
     if b == 1:
@@ -35,10 +38,13 @@ def scenario1 (initial_params):
         all_kn, all_svm, all_dt, intervals = read_acc20(path + '\\split', initial_params['number_of_samples'])
         show_temp(all_kn, all_svm, all_dt, intervals, initial_params['number_of_samples'])
 
+
 """
      сценарий для обработки 1K изображений
 """
-def scenario2 (initial_params):
+
+
+def scenario2(initial_params):
     path = initial_params['path']
 
     # Подаются пути к данным, создаются txt файлы с psd. Использовать для перерасчёта.
@@ -49,9 +55,12 @@ def scenario2 (initial_params):
     interval = [[0, initial_params['count_of_features']]]
     classification(path + '\\split1K', initial_params['number_of_samples'], interval)
 
+
 """
      Косинусное преобразование
 """
-def scenario3 (initial_params):
+
+
+def scenario3(initial_params):
     path = initial_params['path']
     data_to_frequencies(path + '\\true2', path + '\\false2', path + '\\datasets')
