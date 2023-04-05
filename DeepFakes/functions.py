@@ -1158,9 +1158,16 @@ def multi_argmax(c, count):
     return a
 
 
-def data_to_frequencies(path_true, path_false, path):
+def data_to_frequencies(path_true, path_false, path, size_of_dataset):
     # 1. получаем массив путей до файлов картинок.
     true, false = get_datasets_paths(path_true, path_false)
+
+    # Приводим датасеты к одному размеру
+    for i in range(len(true)):
+        true[i][1] = true[i][1][:size_of_dataset]
+
+    for i in range(len(false)):
+        false[i][1] = false[i][1][:size_of_dataset]
 
     # 2. Высчитываем и сохраняем матрицу(64) для каждого изображения в каждом датасете
     beta_true, matrices_true = beta_matrix_of_images(true, True, path)

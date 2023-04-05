@@ -63,4 +63,4 @@ def scenario2(initial_params):
 
 def scenario3(initial_params):
     path = initial_params['path']
-    data_to_frequencies(path + '\\true2', path + '\\false2', path + '\\datasets')
+    data_to_frequencies(path + '\\true2', path + '\\false2', path + '\\datasets', initial_params['size_of_dataset'])
