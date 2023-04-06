@@ -860,12 +860,8 @@ def cosinus_trans(img_nogrey, is_zigzag=True):
 
             # Косинусное преобразование
             block = dct(img_grey[i * f:(i * f + f), j * f:(j * f + f)])
-            # модуль от косинусного перобразования надо ли ?
-            block = np.abs(block)
             if is_zigzag:
                 block = zigzag(block)
-                # Создать 2д массив из 1д
-                # block = np.reshape(block, (-1, 8))
                 for k in range(len(block)):
                     averages[k].append(block[k])
             blocks_dct.append(block)
