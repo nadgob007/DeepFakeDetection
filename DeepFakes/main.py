@@ -26,6 +26,15 @@ initial_params3 = {
     'path': "E:\\NIRS\\Frequency\\Faces-HQ2"    #
 }
 
+initial_params4 = {
+    'size_of_dataset': 10000,                   #
+    'number_of_samples': 30,
+    'size_of_sample': 1000,                     # колличество фотографий в выборке (папке)
+    'p': 0.80,                                  # Процент тренировочной части выборки
+    'count_of_features': 5,                     # Общее количество признаков для 1 изображения
+    'path': "E:\\NIRS\\Frequency\\Faces-HQ2"    #
+}
+
 if __name__ == '__main__':
     # Начало
     start_time = datetime.now()
@@ -36,6 +45,8 @@ if __name__ == '__main__':
     # scenario2(initial_params2)
 
     scenario3(initial_params3)
+
+    # scenario4(initial_params4)
 
     # Конец
     print('Main выполнен за:', datetime.now() - start_time)

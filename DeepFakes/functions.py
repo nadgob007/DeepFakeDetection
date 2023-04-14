@@ -1,10 +1,12 @@
 import os  # файлы
 import re  # Регуляоные выражения
+import copy
 import numpy as np
 from skimage import color  # Отображение изображений
 import matplotlib.pyplot as plt  # Графики
 from skimage.io import imread, imshow, show  # Отображение изображений
 from scipy.fft import fft2, fftfreq, fftshift, dct  # Преобразование фурье
+from sklearn.metrics import classification_report   # отчёт о классификации
 from sklearn.model_selection import train_test_split  # Разбиение данных на обучение и тестирования
 from sklearn.neighbors import KNeighborsClassifier  # Классификация ближайших соседей
 # from sklearn.pipeline import make_pipeline  # Классификация векторов поддержки С
@@ -838,7 +840,8 @@ def classification20(path, number_folders):
     Вход:
         img_nogrey - изображение
         is_zigzag - распологать ли элементы в зиг-заг
-    Выход:
+    Выход: 
+        averages_beta - Вектор средних значений бетта коэффициентов 
 """
 
 
@@ -864,10 +867,10 @@ def cosinus_trans(img_nogrey, is_zigzag=True):
                 block = zigzag(block)
                 for k in range(len(block)):
                     averages[k].append(block[k])
-            blocks_dct.append(block)
+            blocks_dct.append(block)    # Можно убрать если не нужны блоки
 
-    averages_m = [np.mean(i) for i in averages]
-    averages_beta = [np.std(i) / 2 ** (1 / 2) for i in averages]
+    # averages_m = [np.mean(i) for i in averages]
+    averages_beta = [np.std(i) / (2 ** (1 / 2)) for i in averages]
 
     return averages_beta
 
@@ -948,7 +951,7 @@ def cosinus_trans_show(img_nogrey, is_zigzag=True):
 
 
 """
-  Зиг-загом переписывает 2d массив в 1d массив. 
+  Зиг-загом переписывает 2d массив в 1d массив, в порядке зиг-заг от левого верхнего к нижнему правому углу. 
     Вход: массив 
     Выход: массив в зиг-заг развёртке
 """
@@ -973,11 +976,14 @@ def zigzag(matrix):
 
 
 """
- Составляет массивы путей до настоящих и поддельных изображений. получаем массивы путей до файлов картинок.
-    Вход: 
-        n - размер выборки, 
+ В каждой папке true и false, перебирает все датасеты и составляет массивы путей до изображений под каждый датасет 
+ (сколько папок в path_... столько и датасетов) 
+ Составляет массивы путей до настоящих и поддельных изображений в указанных папках.
+    Вход:
         path_true и path_false - пути до папок с настоящими и поддельными изображениями
-    Выход: массивов путей до настоящих и поддельных изображений.
+    Выход: 
+        true_datasets - массивов путей до настоящих 
+        false_datasets - массивов путей до поддельных изображений 
 """
 
 
@@ -1004,8 +1010,11 @@ def get_datasets_paths(path_true, path_false):
 
 
 """ 
- 
-    Вход: путь до файла сохранения, название сохраняемого, массив бета
+ Сохраняет по указанному пути массив бетта с путем к изображению  
+    Вход: 
+        path - путь до файла сохранения, 
+        name - название сохраняемого, 
+        averages_beta - массив бета
     Выход: нет
 """
 
@@ -1020,8 +1029,8 @@ def dct_save(path, name, averages_beta):
 
 
 """
- 
-    Вход: путь до файла чтения
+ Считывает из указанного пути к файлу массив бетта и пути до изображений  
+    Вход: path - путь до файла чтения
     Выход: averages - массив матриц beta
 """
 
@@ -1051,9 +1060,15 @@ def dct_read(path):
 
 
 """
-
-    Вход: 
+ Для переданного массива путей к изображениям расчитываются матрицы бетта и сохраняются.
+ В случае, если в файле уже есть столько же бетта матриц сколько путей в массиве, то перерасчёт не производится 
+    Вход:
+        datasets - массив путей к изображениям
+        istrue - передаётся  
+        path - путь до папки для сохранения бетта матриц
     Выход: 
+        beta_matrix - массив средних бетта матриц для каждого датасета  
+        matrices_images - массив средних бетта для каждого изображения, для каждого датасета 
 """
 
 
@@ -1093,9 +1108,13 @@ def beta_matrix_of_images(datasets, istrue, path):
 
 
 """
-
+ Строит график средних значений бетта коэффициентов для каждого датасета
     Вход: 
-    Выход: 
+        beta_true - массив бетта матриц для каждого настоящего датасета,
+        beta_false - массив бетта матриц для каждого поддельного датасета, 
+        true - названия настоящих датасетов, 
+        false - названия поддельных датасетов.
+    Выход: отсутствует
 """
 
 
@@ -1103,26 +1122,28 @@ def show_beta_statistic(beta_true, beta_false, true, false):
     fig, ax = plt.subplots(figsize=(10, 4), layout='constrained')
 
     for i in range(len(true)):
-        x = beta_true[i]
-        y = [j for j in range(64)]
+        x = beta_true[i][1:]
+        y = [j for j in range(1, 64)]
         ax.plot(y, x, label=os.path.basename(os.path.normpath(true[i][0])) + ' (Настоящие)')
 
     for i in range(len(false)):
-        x = beta_false[i]
-        y = [j for j in range(64)]
+        x = beta_false[i][1:]
+        y = [j for j in range(1, 64)]
         ax.plot(y, x, label=os.path.basename(os.path.normpath(false[i][0])) + ' (Сгенерированые)')
 
-    ax.set_xlabel('Номер коэффициента')
-    ax.set_ylabel('Значение коэффициента')
-    ax.set_title("График статистики каждого задействованного набора данных")
+    ax.set_xlabel('Номер β коэффициента')
+    ax.set_ylabel('Значение β коэффициента')
+    ax.set_title("График значений β для каждого задействованного набора данных")
     ax.legend()
     show()
 
 
 """
-
+ Вычисление значения хи квадрат () для двух масиво бетта из 2х датасетов
     Вход: 
-    Выход: 
+        dataset1 - масиво бетта коэффициентов 1, 
+        dataset2 - масиво бетта коэффициентов 2.
+    Выход: с - значение хи квадрат (расстояние)
 """
 
 
@@ -1137,9 +1158,11 @@ def x_squer(dataset1, dataset2):
 
 
 """
-
+ Получает из массива максимальное значение, удаляет и ищет снова, повторяет count раз
     Вход: 
-    Выход: 
+        c - массив, 
+        count - сколько требуется наибольших значений.
+    Выход: a - вектор count наибольших значений в массиве в порядке убывания.
 """
 
 
@@ -1152,6 +1175,17 @@ def multi_argmax(c, count):
         a.append((arg, max))
         c2[arg] = 0
     return a
+
+
+"""
+ Вычисляет массив номеров бетта коэффициентов, по которым можно классифицировать изображения 
+    Вход: 
+       path_true - путь до папки с датасетами настоящих изображений, 
+       path_false - путь до папки с датасетами подельных изображений, 
+       path - путь до папки, 
+       size_of_dataset - колличество изображений в датасете, которое используется.
+    Выход: отсутствует
+"""
 
 
 def data_to_frequencies(path_true, path_false, path, size_of_dataset):
@@ -1185,12 +1219,183 @@ def data_to_frequencies(path_true, path_false, path, size_of_dataset):
             count += 1
             print(count)
 
-    max_c = [(np.argmax(i), np.max(i)) for i in x]
-    for i in range(0, len(max_c), 3):
-        print(max_c[i], max_c[i+1], max_c[i+2])
-        print('\n')
-
     max_c = [multi_argmax(i, 6) for i in x]
     for i in range(0, len(max_c), 3):
         print(max_c[i], max_c[i+1], max_c[i+2])
         print('\n')
+
+
+""" ___________________________________________
+                    Сценарий 4
+    ___________________________________________
+"""
+
+
+# Оставляет только те бэтта коэффициенты, номера которых указаны в numbers_of_beta
+#   Вход:
+#       matrices - ,
+#       numbers_of_beta - .
+#   Выход:
+#       matrices_tmp - массив аналогичный по структуре matrices, но в матрицах оставлены только те коэффициенты,
+#       номера которых были указаны в numbers_of_beta
+def beta_matrix_reduction(matrices, numbers_of_beta):
+    matrices_tmp = []
+    for dataset in matrices:
+        tmp1 = []
+        for i in dataset:
+            tmp = []
+            for j in numbers_of_beta:
+                tmp.append(i[j])
+            tmp1.append(tmp)
+        matrices_tmp.append(tmp1)
+    return matrices_tmp
+
+
+# Классифицирует массивы признаков по выборкам train и test
+#   Вход:
+#       x_train - массив признаокв тренировочной выборки,
+#       y_train - массив классов тренировочной выборки,
+#       x_test - массив признаокв тестовой выборки,
+#       y_test - массив классов тестовой выборки.
+#   Выход:
+#         accuracy_KN - точночность для к ближайших соседей,
+#         accuracy_SVM - точночность для метода опорных векторов,
+#         accuracy_DT - точночность для дерева решений.
+def classifier_dct(x_train, y_train, x_test, y_test):
+
+    # Классификация ближайших соседей
+    neigh = KNeighborsClassifier(n_neighbors=5)
+    neigh.fit(x_train, y_train)
+
+    predicts_kn = neigh.predict(x_test)
+    accuracy_kn = 0
+    for i in range(len(y_test)):
+        if y_test[i] == predicts_kn[i]:
+            accuracy_kn += 1
+    # cr = classification_report(y_test, predicts_kn)
+    # print(cr)
+
+    # Классификация опорных векторов С радиальной базисной функции
+    clf = SVC(kernel='rbf', gamma='auto')
+    clf.fit(x_train, y_train)
+
+    predicts_svm = clf.predict(x_test)
+    accuracy_svm = 0
+    for i in range(len(y_test)):
+        if y_test[i] == predicts_svm[i]:
+            accuracy_svm += 1
+    # cr = classification_report(y_test, predicts_svm)
+    # print(cr)
+
+    # Классификатор дерева решений
+    clf = DecisionTreeClassifier(random_state=0)
+    clf.fit(x_train, y_train)
+
+    predicts_dt = clf.predict(x_test)
+    accuracy_dt = 0
+    for i in range(len(y_test)):
+        if y_test[i] == predicts_dt[i]:
+            accuracy_dt += 1
+    # cr = classification_report(y_test, predicts_dt)
+    # print(cr)
+
+    return accuracy_kn, accuracy_svm, accuracy_dt
+
+
+"""
+ Вычисляет массив номеров бетта коэффициентов, по которым можно классифицировать изображения 
+    Вход: 
+       path_true - путь до папки с датасетами настоящих изображений, 
+       path_false - путь до папки с датасетами подельных изображений, 
+       path - путь до папки, 
+       size_of_dataset - колличество изображений в датасете, которое используется.
+    Выход: отсутствует
+"""
+
+
+def classification_dct(path_true, path_false, path, number_of_samples, size_of_dataset, size_of_sample, p):
+    # 1. получаем массив путей до файлов картинок.
+    true, false = get_datasets_paths(path_true, path_false)
+
+    # Приводим датасеты к одному размеру
+    for i in range(len(true)):
+        true[i][1] = true[i][1][:size_of_dataset]
+
+    for i in range(len(false)):
+        false[i][1] = false[i][1][:size_of_dataset]
+
+    # 2. Высчитываем и сохраняем матрицу(64) для каждого изображения в каждом датасете
+    beta_true, matrices_true = beta_matrix_of_images(true, True, path)
+    beta_false, matrices_false = beta_matrix_of_images(false, False, path)
+
+    # 3. Сокращаем матрицу бетта значений, выбирая только те, которые есть в numbers_of_beta
+    numbers_of_beta = [35, 21, 20, 10, 9]
+    matrices_true = beta_matrix_reduction(matrices_true, numbers_of_beta)
+    matrices_false = beta_matrix_reduction(matrices_false, numbers_of_beta)
+
+    # 4. Создание выборок для классификации в колличестве number_of_samples
+    samples = []
+    for j in range(number_of_samples):
+        true_part_sample = []
+        number_of_true_false = int(size_of_sample / 2)   # Колличество настоящих и поддельных в 1ой выборке
+        a = number_of_true_false/len(matrices_true)     # если число не целое
+        int_a = int(a)
+        b = int((a - int_a) * len(matrices_true))+1
+        for i in matrices_true:
+            if b-1 < 0:
+                true_part_sample += i[int_a*j: int_a*j+int_a]
+            else:
+                true_part_sample += i[(int_a+1)*j:(int_a+1)*j+(int_a+1)]
+                b -= 1
+
+        false_part_sample = []
+        number_of_true_false = int(size_of_sample / 2)  # Колличество настоящих и поддельных в 1ой выборке
+        a = number_of_true_false / len(matrices_false)  # если число не целое
+        int_a = int(a)
+        b = int((a - int(a)) * len(matrices_false)) + 1
+        for i in matrices_false:
+            if b-1 < 0:
+                false_part_sample += i[int_a*j: int_a*j+int_a]
+            else:
+                false_part_sample += i[(int_a+1)*j:(int_a+1)*j+(int_a+1)]
+                b -= 1
+
+        x = true_part_sample + false_part_sample
+        y = [1 for i in range(number_of_true_false)] + [0 for i in range(number_of_true_false)]
+        x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=p, random_state=42)
+        samples.append([])
+        samples[j].append(x_train)
+        samples[j].append(y_train)
+        samples[j].append(x_test)
+        samples[j].append(y_test)
+
+    # 5. Классификация и расчёт точности для 1 до 5 бетта коэффициентов
+    number_of_beta = 5
+    KN = []
+    SVM = []
+    DT = []
+    for count in range(number_of_beta):
+        print(count+1)
+        samples_tmp = copy.deepcopy(samples)
+        KN1 = []
+        SVM1 = []
+        DT1 = []
+        for i in samples_tmp:
+            for j in i[0]:
+                for k in range(number_of_beta-1, count, -1):
+                    j.pop(k)
+            for j in i[2]:
+                for k in range(number_of_beta-1, count, -1):
+                    j.pop(k)
+            kn, svm, dt = classifier_dct(i[0], i[1], i[2], i[3])
+            KN1.append(kn)
+            SVM1.append(svm)
+            DT1.append(dt)
+            print(kn, svm, dt)
+        KN.append(KN1)
+        SVM.append(SVM1)
+        DT.append(DT1)
+
+    # 6. Отрисовка граффиков точности классификации для случаев 1-5 бетта
+    for i in range(number_of_beta):
+        show_acc(number_of_samples, [i/2 for i in KN[i]], [i/2 for i in SVM[i]], [i/2 for i in DT[i]])

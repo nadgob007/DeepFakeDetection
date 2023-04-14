@@ -13,17 +13,17 @@ def scenario1(initial_params):
         data_to_psd(initial_params['all_images'], initial_params['size_of_sample'], initial_params['p'],
                     path + '\\true', path + '\\false', path + '\\split')
 
-    b = 1  # Классификация по имеющимся txt файлам
+    b = 0  # Классификация по имеющимся txt файлам
     if b == 1:
         interval = [[0, initial_params['count_of_features']]]
         classification(path + '\\split', initial_params['number_of_samples'], interval)
 
-    c = 0  # Отображение данных классификаторов
+    c = 1  # Отображение данных классификаторов
     if c == 1:
         kn_all, svm_all, dt_all = read_acc(initial_params['path'] + '\\split\\acc.txt')
         show_acc(len(kn_all), kn_all, svm_all, dt_all)
 
-    d = 1  # Перещёт классификаторами для интервала в 20 признаков из участков по 10 из разных частей вектора признаков.
+    d = 0  # Перещёт классификаторами для интервала в 20 признаков из участков по 10 из разных частей вектора признаков.
     if d == 1:
         classification20(path + '\\split', initial_params['number_of_samples'])
 
@@ -57,10 +57,20 @@ def scenario2(initial_params):
 
 
 """
-     Косинусное преобразование
+     Определение номеров бэтта коэффициентов 
 """
 
 
 def scenario3(initial_params):
     path = initial_params['path']
     data_to_frequencies(path + '\\true2', path + '\\false2', path + '\\datasets', initial_params['size_of_dataset'])
+
+
+"""
+     Эксперементы с классификацией
+"""
+
+
+def scenario4(initial_params):
+    path = initial_params['path']
+    classification_dct(path + '\\true2', path + '\\false2', path + '\\datasets', initial_params['number_of_samples'], initial_params['size_of_dataset'], initial_params['size_of_sample'], initial_params['p'])
