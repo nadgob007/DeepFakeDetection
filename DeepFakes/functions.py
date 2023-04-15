@@ -1107,6 +1107,26 @@ def beta_matrix_of_images(datasets, istrue, path):
     return beta_matrix, matrices_images
 
 
+# Чтение файлов dct.txt
+def read_beta_matrix_of_images(istrue, path):
+    which = '\\false\\'
+    if istrue:
+        which = '\\true\\'
+    beta_matrix = []
+    matrices_images = []
+    datasets = [path + which + dirpath for dirpath in os.listdir(path + which)]
+    for path_folder in datasets:
+        # Путь до папки датасета
+        averages = dct_read(path_folder)
+        matrices_images.append(averages)
+        # средняя матрица для всего датасета
+        transpose_averages = [*zip(*averages)]
+        beta = [np.mean(j) for j in transpose_averages]
+        beta_matrix.append(beta)
+
+    return beta_matrix, matrices_images
+
+
 """
  Строит график средних значений бетта коэффициентов для каждого датасета
     Вход: 
@@ -1124,12 +1144,12 @@ def show_beta_statistic(beta_true, beta_false, true, false):
     for i in range(len(true)):
         x = beta_true[i][1:]
         y = [j for j in range(1, 64)]
-        ax.plot(y, x, label=os.path.basename(os.path.normpath(true[i][0])) + ' (Настоящие)')
+        ax.plot(y, x, label=os.path.basename(os.path.normpath(true[i])) + ' (Настоящие)')
 
     for i in range(len(false)):
         x = beta_false[i][1:]
         y = [j for j in range(1, 64)]
-        ax.plot(y, x, label=os.path.basename(os.path.normpath(false[i][0])) + ' (Сгенерированые)')
+        ax.plot(y, x, label=os.path.basename(os.path.normpath(false[i])) + ' (Сгенерированые)')
 
     ax.set_xlabel('Номер β коэффициента')
     ax.set_ylabel('Значение β коэффициента')
@@ -1189,22 +1209,28 @@ def multi_argmax(c, count):
 
 
 def data_to_frequencies(path_true, path_false, path, size_of_dataset):
-    # 1. получаем массив путей до файлов картинок.
-    true, false = get_datasets_paths(path_true, path_false)
+    if os.path.exists(path_true) and [dirpath for dirpath in os.listdir(path_true)]:
+        # 1. получаем массив путей до файлов картинок.
+        true, false = get_datasets_paths(path_true, path_false)
 
-    # Приводим датасеты к одному размеру
-    for i in range(len(true)):
-        true[i][1] = true[i][1][:size_of_dataset]
+        # Приводим датасеты к одному размеру
+        for i in range(len(true)):
+            true[i][1] = true[i][1][:size_of_dataset]
 
-    for i in range(len(false)):
-        false[i][1] = false[i][1][:size_of_dataset]
+        for i in range(len(false)):
+            false[i][1] = false[i][1][:size_of_dataset]
 
-    # 2. Высчитываем и сохраняем матрицу(64) для каждого изображения в каждом датасете
-    beta_true, matrices_true = beta_matrix_of_images(true, True, path)
-    beta_false, matrices_false = beta_matrix_of_images(false, False, path)
+        # 2. Высчитываем и сохраняем матрицу(64) для каждого изображения в каждом датасете
+        beta_true, matrices_true = beta_matrix_of_images(true, True, path)
+        beta_false, matrices_false = beta_matrix_of_images(false, False, path)
+    else:
+        beta_true, matrices_true = read_beta_matrix_of_images(True, path)
+        beta_false, matrices_false = read_beta_matrix_of_images(False, path)
 
+    true_datasets_names = [path + '\\true\\' + dirpath for dirpath in os.listdir(path + '\\true\\')]
+    false_datasets_names = [path + '\\false\\' + dirpath for dirpath in os.listdir(path + '\\false\\')]
     # 3. отображение графика с бетта коэффициентами для каждого датасета
-    show_beta_statistic(beta_true, beta_false, true, false)
+    show_beta_statistic(beta_true, beta_false, true_datasets_names, false_datasets_names)
 
     # 4. Вычисляем расстояние χ
     datasets_names = [os.path.basename(os.path.normpath(i[0])) for i in true] + [os.path.basename(os.path.normpath(i[0])) for i in false]
@@ -1314,26 +1340,16 @@ def classifier_dct(x_train, y_train, x_test, y_test):
 
 
 def classification_dct(path_true, path_false, path, number_of_samples, size_of_dataset, size_of_sample, p):
-    # 1. получаем массив путей до файлов картинок.
-    true, false = get_datasets_paths(path_true, path_false)
+    # 1. Считываем из файлов матрицу(64) для каждого изображения в каждом датасете
+    beta_true, matrices_true = read_beta_matrix_of_images(True, path)
+    beta_true, matrices_false = read_beta_matrix_of_images(False, path)
 
-    # Приводим датасеты к одному размеру
-    for i in range(len(true)):
-        true[i][1] = true[i][1][:size_of_dataset]
-
-    for i in range(len(false)):
-        false[i][1] = false[i][1][:size_of_dataset]
-
-    # 2. Высчитываем и сохраняем матрицу(64) для каждого изображения в каждом датасете
-    beta_true, matrices_true = beta_matrix_of_images(true, True, path)
-    beta_false, matrices_false = beta_matrix_of_images(false, False, path)
-
-    # 3. Сокращаем матрицу бетта значений, выбирая только те, которые есть в numbers_of_beta
+    # 2. Сокращаем матрицу бетта значений, выбирая только те, которые есть в numbers_of_beta
     numbers_of_beta = [35, 21, 20, 10, 9]
     matrices_true = beta_matrix_reduction(matrices_true, numbers_of_beta)
     matrices_false = beta_matrix_reduction(matrices_false, numbers_of_beta)
 
-    # 4. Создание выборок для классификации в колличестве number_of_samples
+    # 3. Создание выборок для классификации в колличестве number_of_samples
     samples = []
     for j in range(number_of_samples):
         true_part_sample = []
@@ -1369,7 +1385,7 @@ def classification_dct(path_true, path_false, path, number_of_samples, size_of_d
         samples[j].append(x_test)
         samples[j].append(y_test)
 
-    # 5. Классификация и расчёт точности для 1 до 5 бетта коэффициентов
+    # 4. Классификация и расчёт точности для 1 до 5 бетта коэффициентов
     number_of_beta = 5
     KN = []
     SVM = []
@@ -1396,6 +1412,6 @@ def classification_dct(path_true, path_false, path, number_of_samples, size_of_d
         SVM.append(SVM1)
         DT.append(DT1)
 
-    # 6. Отрисовка граффиков точности классификации для случаев 1-5 бетта
+    # 5. Отрисовка граффиков точности классификации для случаев 1-5 бетта
     for i in range(number_of_beta):
         show_acc(number_of_samples, [i/2 for i in KN[i]], [i/2 for i in SVM[i]], [i/2 for i in DT[i]])
