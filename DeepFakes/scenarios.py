@@ -74,3 +74,7 @@ def scenario3(initial_params):
 def scenario4(initial_params):
     path = initial_params['path']
     classification_dct(path + '\\true2', path + '\\false2', path + '\\datasets', initial_params['number_of_samples'], initial_params['size_of_dataset'], initial_params['size_of_sample'], initial_params['p'])
+
+
+def scenario5(initial_params):
+    path = initial_params['path']
