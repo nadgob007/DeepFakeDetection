@@ -845,29 +845,30 @@ def classification20(path, number_folders):
 """
 
 
-def cosinus_trans(img_nogrey, is_zigzag=True):
+def cosinus_trans(img_nogrey):
     img = imread(img_nogrey)
+    rgb_weights = [0.2989, 0.5870, 0.1140]
+    grayscale_pic = np.dot(img[..., :3], rgb_weights)
     img_grey = color.rgb2gray(img)  # Изображение в оттенках серого
+    img_grey = grayscale_pic
 
     w, h = img_grey.shape
     f = 8
     count = int(w / f)
-
     blocks = []
-    blocks_dct = []
     averages = [[] for i in range(f * f)]
 
     for i in range(count):
         for j in range(count):
-            blocks.append(img_grey[i * f:(i * f + f), j * f:(j * f + f)])
+            block = img_grey[i * f:(i * f + f), j * f:(j * f + f)]
+            blocks.append(block)
 
             # Косинусное преобразование
-            block = dct(img_grey[i * f:(i * f + f), j * f:(j * f + f)])
-            if is_zigzag:
-                block = zigzag(block)
-                for k in range(len(block)):
-                    averages[k].append(block[k])
-            blocks_dct.append(block)    # Можно убрать если не нужны блоки
+            block_dct = dct(dct(block).T)
+
+            block_dct = zigzag(block_dct)
+            for k in range(len(block_dct)):
+                averages[k].append(block_dct[k])
 
     # averages_m = [np.mean(i) for i in averages]
     averages_beta = [np.std(i) / (2 ** (1 / 2)) for i in averages]
@@ -884,9 +885,13 @@ def cosinus_trans(img_nogrey, is_zigzag=True):
 """
 
 
-def cosinus_trans_show(img_nogrey, is_zigzag=True):
+def cosinus_trans_show(img_nogrey):
     img = imread(img_nogrey)
+    rgb_weights = [0.2989, 0.5870, 0.1140]
+    grayscale_pic = np.dot(img[..., :3], rgb_weights)
     img_grey = color.rgb2gray(img)  # Изображение в оттенках серого
+    img_grey = grayscale_pic
+
     w, h = img_grey.shape
     f = 8
     count = int(w / f)
@@ -896,23 +901,20 @@ def cosinus_trans_show(img_nogrey, is_zigzag=True):
 
     for i in range(count):
         for j in range(count):
-            blocks.append(img_grey[i * f:(i * f + f), j * f:(j * f + f)])
+            block = img_grey[i * f:(i * f + f), j * f:(j * f + f)]
+            blocks.append(block)
 
             # Косинусное преобразование
-            block = dct(img_grey[i * f:(i * f + f), j * f:(j * f + f)])
+            block_dct = dct(dct(block).T)
 
             # модуль от косинусного перобразования надо ли ?
-            # block = np.abs(block)
-            if is_zigzag:
-                block = zigzag(block)
+            # block_dct = np.abs(block_dct)
+            blocks_dct.append(block_dct)
 
-                # Создать 2д массив из 1д
-                # block = np.reshape(block, (-1, 8))
-                for i in range(len(block)):
-                    averages[i].append(block[i])
-            blocks_dct.append(block)
+            block_dct = zigzag(block_dct)
+            for k in range(len(block_dct)):
+                averages[k].append(block_dct[k])
 
-    averages_m = [np.mean(i) for i in averages]
     averages_beta = [np.std(i) / 2 ** (1 / 2) for i in averages]
 
     # соединяем блоки в 1 изображение
@@ -932,7 +934,7 @@ def cosinus_trans_show(img_nogrey, is_zigzag=True):
     fig = plt.figure(figsize=(8, 8))
     imshow(c, cmap='gray')
 
-    dct2 = np.log(1 + np.abs(dct(img_grey)))
+    dct2 = np.log(1 + np.abs(dct(dct(img_grey).T)))
     # Простотранство для отображения
     fig = plt.figure(figsize=(15, 5))
 
@@ -943,7 +945,7 @@ def cosinus_trans_show(img_nogrey, is_zigzag=True):
     # В оттенках серого. Значения от 0 до 1
     fig.add_subplot(2, 3, 2)
     plt.title("Изображение в отенках серого", fontsize=12)
-    imshow(img_grey)
+    imshow(img_grey, cmap='gray')
 
     fig.add_subplot(2, 3, 3)
     imshow(dct2, cmap='gray')  # Отображать серым

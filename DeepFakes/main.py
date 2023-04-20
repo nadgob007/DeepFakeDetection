@@ -53,11 +53,11 @@ if __name__ == '__main__':
 
     # scenario2(initial_params2)
 
-    #scenario3(initial_params3)
+    scenario3(initial_params3)
 
     # scenario4(initial_params4)
 
-    scenario5(initial_params5)
+    # scenario5(initial_params5)
 
     # Конец
     print('Main выполнен за:', datetime.now() - start_time)
