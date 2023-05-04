@@ -515,14 +515,16 @@ def show_temp(all_kn, all_svm, all_dt, intervals, number_of_folders):
 """
 
 
-def show_acc(num, all_kn, all_svm, all_dt):
+def show_acc(num, all_kn, all_svm, all_dt, title):
     #  Задаем смещение равное половине ширины прямоугольника:
     x1 = np.arange(0, num) - 0.3
     x2 = np.arange(0, num) + 0
     x3 = np.arange(0, num) + 0.3
 
     mins = [min(all_kn), min(all_svm), min(all_dt)]
+    maxs = [max(all_kn), max(all_svm), max(all_dt)]
     print(f'Наименьшее:{mins}')
+
 
     y1 = [all_kn[i] for i in range(len(all_kn))]
     y2 = [all_svm[i] for i in range(len(all_svm))]
@@ -539,7 +541,8 @@ def show_acc(num, all_kn, all_svm, all_dt):
 
     ax.legend(loc="upper left")
 
-    ax.set_title(f'Точность KN, SVM, DT')
+    ax.set_title(f'Точность KN, SVM, DT {title}\n '
+                 f'min/max(kn):{mins[0]}/{maxs[0]},  min/max(svm):{mins[1]}/{maxs[1]},  min/max(dt):{mins[2]}/{maxs[2]}')
     ax.set_facecolor('seashell')
     fig.set_figwidth(12)  # ширина Figure
     fig.set_figheight(6)  # высота Figure
@@ -1387,7 +1390,7 @@ def classification_dct(path_true, path_false, path, number_of_samples, size_of_d
         samples[j].append(x_test)
         samples[j].append(y_test)
 
-    # 4. Классификация и расчёт точности для 1 до 5 бетта коэффициентов
+    # 4. Классификация и расчёт точности для от 1 до 5 бетта коэффициентов
     number_of_beta = 5
     KN = []
     SVM = []
@@ -1416,4 +1419,4 @@ def classification_dct(path_true, path_false, path, number_of_samples, size_of_d
 
     # 5. Отрисовка граффиков точности классификации для случаев 1-5 бетта
     for i in range(number_of_beta):
-        show_acc(number_of_samples, [i/2 for i in KN[i]], [i/2 for i in SVM[i]], [i/2 for i in DT[i]])
+        show_acc(number_of_samples, [i/2 for i in KN[i]], [i/2 for i in SVM[i]], [i/2 for i in DT[i]], title=f' при {str(i+1)} β коэфициентах')

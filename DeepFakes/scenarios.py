@@ -31,7 +31,7 @@ def scenario1(initial_params):
     if e == 1:
         # classification10(path + '\\split', number_of_folders)
         kn_all, svm_all, dt_all = read_acc(path + '\\split\\0\\acc.txt')
-        show_acc(len(kn_all), kn_all, svm_all, dt_all)
+        show_acc(len(kn_all), kn_all, svm_all, dt_all, title='')
 
     f = 1  # Отображение тепловой карты
     if f == 1:
@@ -74,7 +74,3 @@ def scenario3(initial_params):
 def scenario4(initial_params):
     path = initial_params['path']
     classification_dct(path + '\\true2', path + '\\false2', path + '\\datasets', initial_params['number_of_samples'], initial_params['size_of_dataset'], initial_params['size_of_sample'], initial_params['p'])
-
-
-def scenario5(initial_params):
-    path = initial_params['path']
