@@ -10,6 +10,8 @@ initial_params1 = {
 }
 
 initial_params2 = {
+    'number_of_samples': 5,                     # количество выборок(папок) по size_of_sample фотографий
+    'p': 0.6,                                   # Процент тренировочной части выборки
     'path': "E:\\NIRS\\Frequency\\Faces-HQ2"    # путь до папки со всеми файлами
 }
 
@@ -39,9 +41,9 @@ if __name__ == '__main__':
     start_time = datetime.now()
     print('Start in:', start_time)
 
-    scenario1(initial_params1)      # ДПФ
+    #scenario1(initial_params1)     # ДПФ
 
-    # scenario2(initial_params2)    # Перенос psds
+    scenario2(initial_params2)      # Эксперементы с классификацией по всем данным 0.6 ДПФ
 
     # scenario3(initial_params3)    # Определение номеров бэтта коэффициентов
 

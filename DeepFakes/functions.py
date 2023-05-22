@@ -746,9 +746,48 @@ def data_to_psd(size_of_sample, number_of_samples, p, path_true, path_false, pat
     return 0
 
 
-def check_for_comparison_psd():
-    # 1. Считываем из файлов матрицу(64) для каждого изображения в каждом датасете
-    print()
+def check_for_comparison_psd(path, number_of_samples, p):
+    # 1. получаем массив путей до файлов картинок и оставляем только n/2 от каждого.
+    true = []
+    false = []
+    true_datasets = [os.path.join(path + '\\true', dirpath) for dirpath in os.listdir(path + '\\true')]
+    for i in true_datasets:
+        true.append(psd_read(i))
+
+    false_datasets = [os.path.join(path + '\\false', dirpath) for dirpath in os.listdir(path + '\\false')]
+    for i in false_datasets:
+        false.append(psd_read(i))
+
+    x = []
+    y = []
+    for i in true:
+        x += i
+        y += [1 for j in range(len(i))]
+    for i in false:
+        x += i
+        y += [0 for j in range(len(i))]
+
+    KN = []
+    SVM = []
+    DT = []
+    for i in range(number_of_samples):
+        sample = []
+        x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=p, random_state=42 + i)
+
+        # 4. Классификация и расчёт точности
+        kn, svm, dt = classifier_dct(x_train, y_train, x_test, y_test)
+        KN.append(kn)
+        SVM.append(svm)
+        DT.append(dt)
+        print(f'№{i + 1}')
+        print(kn, svm, dt)
+
+    # 5. Отрисовка граффиков точности классификации
+    one_procent = len(y_test) / 100
+
+    show_acc(number_of_samples, [i / one_procent for i in KN], [i / one_procent for i in SVM],
+             [i / one_procent for i in DT], title=f' 5 выборок')
+
 
 
 """
@@ -1443,7 +1482,7 @@ def classification_dct(path, number_of_samples, size_of_sample, p, count_of_feat
         SVM.append(SVM1)
         DT.append(DT1)
 
-    # 5. Отрисовка граффиков точности классификации для случаев 1-5 бетта
+    # 5. Отрисовка граффиков точности классификации для случаев 1-5 бета
     for i in range(number_of_beta):
         show_acc(number_of_samples, [i/2 for i in KN[i]], [i/2 for i in SVM[i]], [i/2 for i in DT[i]], title=f' при {str(i+1)} β коэфициентах')
 
@@ -1453,7 +1492,7 @@ def check_for_comparison_dct(path, number_of_samples, p, count_of_features):
     beta_true, matrices_true = read_beta_matrix_of_images(True, path)
     beta_true, matrices_false = read_beta_matrix_of_images(False, path)
 
-    # 2. Сокращаем матрицу бетта значений, выбирая только те, которые есть в numbers_of_beta
+    # 2. Сокращаем матрицу бета значений, выбирая только те, которые есть в numbers_of_beta
     numbers_of_beta = [35, 21, 20, 10, 9]
     matrices_true = beta_matrix_reduction(matrices_true, numbers_of_beta)
     matrices_false = beta_matrix_reduction(matrices_false, numbers_of_beta)
