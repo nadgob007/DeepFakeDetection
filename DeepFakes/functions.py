@@ -1,12 +1,12 @@
-import os  # файлы
-import re  # Регуляоные выражения
-import copy
+import os       # файлы
+import re       # Регуляоные выражения
+import copy     # глубокое копирование объекта
 import numpy as np
 from skimage import color  # Отображение изображений
 import matplotlib.pyplot as plt  # Графики
 from skimage.io import imread, imshow, show  # Отображение изображений
 from scipy.fft import fft2, fftfreq, fftshift, dct  # Преобразование фурье
-from sklearn.metrics import classification_report   # отчёт о классификации
+# from sklearn.metrics import classification_report   # отчёт о классификации
 from sklearn.model_selection import train_test_split  # Разбиение данных на обучение и тестирования
 from sklearn.neighbors import KNeighborsClassifier  # Классификация ближайших соседей
 # from sklearn.pipeline import make_pipeline  # Классификация векторов поддержки С
@@ -16,6 +16,7 @@ from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 # from datetime import datetime  # Время выполнения скрипта
 # import time
+
 
 """
     Сторонние функции азимутального усреднения
@@ -134,7 +135,7 @@ def azimuthalAverage(image, center=None, stddev=False, median=False, returnradii
 
 
 # calculations -> calculate_features
-def calculate_features(img_nogrey, isavg):
+def calculate_features(img_nogrey, only_psd=True, isavg=False):
     try:
         img = imread(img_nogrey)  # Цветное изображение
     except:
@@ -157,11 +158,14 @@ def calculate_features(img_nogrey, isavg):
     # fft2 = np.fft.fftshift(1 + np.abs(fft2))  # Хуже работает
 
     # Добавить возможность деления на сумму усреднения
-    if isavg == True:
+    if isavg:
         fft2 = fft2 / sum(fft2, fft2[0])
     psd1D = azimuthalAverage(fft2, binsize=1, median=True)
 
-    return img, img_grey, fft2, psd1D
+    if only_psd:
+        return psd1D
+    else:
+        return img, img_grey, fft2, psd1D
 
 
 """ 
@@ -214,20 +218,13 @@ def show_img(img_nogrey, isavg):
 """
 
 
-def psd_save(path, x, y, numbers):
-    # Формируем шапку таблицы в psd.txt
-    f = open(path, 'w')
-    form = 'Image[№]\t PSD_1D\n'
-    f.write(form)
+def psd_save(path, name, psd, file_name='psd.txt'):
+    # Сохраняем 1 массив созданый по 1 изображению
+    f = open(path + '\\' + file_name, 'a')
     line = ''
-    elem = 0
-    while elem != len(x):
-        line += str(y[elem]) + '_' + numbers[elem] + '\t' + str([x[elem][i] for i in range(len(x[elem]))]) + '\n'
-        elem += 1
+    line += str(name) + '\t' + str([i for i in psd]) + '\n'
     f.write(line)
     f.close()
-
-    return elem
 
 
 """
@@ -237,38 +234,28 @@ def psd_save(path, x, y, numbers):
 """
 
 
-def read_save(path, interval):
-    f = open(path, 'r')
-    line = f.readline()
-    x = []
-    numbers = []
+def psd_read(path, file_name='\\psd.txt'):
+    file_path = path + file_name
+    if not os.path.exists(file_path):
+        f = open(file_path, 'a')
+        f.close()
+
+    f = open(file_path, 'r')
+    line = '.'
+    psd = []
+    names = []
     while line:
         line = f.readline()
         if len(line) == 0:
             break
         result = re.split(r'\t', line)
-        numbers.append(result.pop(0))
+        names.append(result.pop(0))
         result = result[0][1:-2]
         result = re.split(r', ', result)
-        tmp = []
-        for i in interval:
-            for j in range(i[0], i[1]):
-                if result[j] == '':
-                    print(j)
-                    # for c in range(i[0], i[1]):
-                    #     tmp.append(float(0))
-                    break
-                else:
-                    tmp.append(float(result[j]))
-        x.append(tmp)
-
-    y = []
-    for i in numbers:
-        truth = i.split("_", 1)
-        y.append(truth[0])
-
+        tmp = [float(i) for i in result]
+        psd.append(tmp)
     f.close()
-    return x, y
+    return psd
 
 
 """
@@ -278,19 +265,9 @@ def read_save(path, interval):
 """
 
 
-def classifier(path_folder, interval):
-    x_train, y_train = read_save(path_folder + '\\train_psd.txt', interval)
-    x_test, y_test = read_save(path_folder + '\\test_psd.txt', interval)
-
-    count_train = 0
-    for i in range(len(y_train)):
-        if y_train[i] == '1':
-            count_train += 1
-
-    count_test = 0
-    for i in range(len(y_test)):
-        if y_test[i] == '1':
-            count_test += 1
+def classifier(x_train, y_train, x_test, y_test, interval):
+    y_train = [int(i[0]) for i in y_train]
+    y_test = [int(i[0]) for i in y_test]
 
     # Классификация ближайших соседей
     neigh = KNeighborsClassifier(n_neighbors=5)
@@ -375,7 +352,6 @@ def read_acc(path):
 
 
 """
-[+]
  Читает файл со статистикой по всем 40 выборкам. Возвращает массив точностей по каждой выборке для каждого классификатора
     Вход: путь до файла чтения, колличество папок
     Выход: массивы точностей для KN, SVM, DT и интервал признаков (сколько признаков)
@@ -413,7 +389,6 @@ def read_acc20(path, number_of_folders):
 
 
 """
-[+]
  Строит тепловые карты для каждого массива точностей 
     Вход: массивы точностей для KN, SVM, DT и интервал признаков (сколько признаков), колличество папок
     Выход: отсутствует
@@ -521,10 +496,14 @@ def show_acc(num, all_kn, all_svm, all_dt, title):
     x2 = np.arange(0, num) + 0
     x3 = np.arange(0, num) + 0.3
 
-    mins = [min(all_kn), min(all_svm), min(all_dt)]
-    maxs = [max(all_kn), max(all_svm), max(all_dt)]
+    mins = [round(min(all_kn), 1), round(min(all_svm), 1), round(min(all_dt), 1)]
+    maxs = [round(max(all_kn), 1), round(max(all_svm), 1), round(max(all_dt), 1)]
     print(f'Наименьшее:{mins}')
 
+    avg_str = ''
+    if num > 1:
+        avg = [round(np.mean(all_kn), 1), round(np.mean(all_svm), 1), round(np.mean(all_dt), 1)]
+        avg_str = f'\navg kn:{avg[0]},    svm:{avg[1]},   dt:{avg[2]}'
 
     y1 = [all_kn[i] for i in range(len(all_kn))]
     y2 = [all_svm[i] for i in range(len(all_svm))]
@@ -533,7 +512,7 @@ def show_acc(num, all_kn, all_svm, all_dt, title):
     # y_masked = np.ma.masked_where(int(y1) < 50, y1)
 
     fig, ax = plt.subplots()
-    plt.ylim(min(mins), 100)
+    plt.ylim(min(mins)-((100-min(mins))/100)*10, 100)
 
     ax.bar(x1, y1, width=0.2, label='KN')
     ax.bar(x2, y2, width=0.2, label='SVM', color='orange')
@@ -542,7 +521,7 @@ def show_acc(num, all_kn, all_svm, all_dt, title):
     ax.legend(loc="upper left")
 
     ax.set_title(f'Точность KN, SVM, DT {title}\n '
-                 f'min/max(kn):{mins[0]}/{maxs[0]},  min/max(svm):{mins[1]}/{maxs[1]},  min/max(dt):{mins[2]}/{maxs[2]}')
+                 f'min/max kn:{mins[0]} / {maxs[0]},    svm:{mins[1]}/{maxs[1]},   dt:{mins[2]}/{maxs[2]}' + avg_str)
     ax.set_facecolor('seashell')
     fig.set_figwidth(12)  # ширина Figure
     fig.set_figheight(6)  # высота Figure
@@ -554,7 +533,6 @@ def show_acc(num, all_kn, all_svm, all_dt, title):
 
 
 """
-[+]
  Сохраняет значения классификаторов для 10 или 20 признаков 
     Вход: путь до вайла сохранения, массивы точностей для KN, SVM, DT, интервалы признаков, режим 10 или 20
     Выход: сохраненные строки
@@ -586,7 +564,7 @@ def save_in_1K(path, kn, svm, dt, intervals, mode):
 
 
 """
- Составляет массивы путей до настоящих и поддельных изображений. получаем массив путей до файлов картинок и оставляем только n/2 от каждого.
+ Составляет массивы путей до настоящих и поддельных изображений. получаем массив путей до файлов картинок.
     Вход: 
         n - размер выборки, 
         path_true и path_false - пути до папок с настоящими и поддельными изображениями
@@ -594,20 +572,26 @@ def save_in_1K(path, kn, svm, dt, intervals, mode):
 """
 
 
-def get_data_list(n, path_true, path_false):
-    true_items = []
-    for dirpath, dirnames, filenames in os.walk(path_true):
-        if not (len(filenames) == 0) and len(dirnames) == 0:
-            for i in filenames:
-                true_items.append(dirpath + '\\' + i)
+def get_data_list(path_true, path_false):
+    true_datasets = [[os.path.join(path_true, dirpath)] for dirpath in os.listdir(path_true)]
+    for j in true_datasets:
+        true_items = []
+        for dirpath, dirnames, filenames in os.walk(j[0]):
+            if not (len(filenames) == 0):
+                for i in filenames:
+                    true_items.append(dirpath + '\\' + i)
+        j.append(true_items)
 
-    false_items = []
-    for dirpath, dirnames, filenames in os.walk(path_false):
-        if not (len(filenames) == 0) and len(dirnames) == 0:
-            for i in filenames:
-                false_items.append(dirpath + '\\' + i)
+    false_datasets = [[os.path.join(path_false, dirpath)] for dirpath in os.listdir(path_false)]
+    for j in false_datasets:
+        false_items = []
+        for dirpath, dirnames, filenames in os.walk(j[0]):
+            if not (len(filenames) == 0):
+                for i in filenames:
+                    false_items.append(dirpath + '\\' + i)
+        j.append(false_items)
 
-    return true_items[0:int(n / 2)], false_items[0:int(n / 2)]
+    return true_datasets, false_datasets
 
 
 """
@@ -619,60 +603,37 @@ def get_data_list(n, path_true, path_false):
 """
 
 
-def list2psD1_2(list_allK1, path_folder, features):
-    for i in range(0, len(list_allK1)):
-        # Обучающий набор
-        list_train = list_allK1[i].get(0)
-        train_numbers = []
-        y_train = []
-        x_train = []
-        for img in list_train:
-            truth = img[0]
-            y_train.append(truth)
-            train_numbers.append(img[1])
+def list2psd1_2(datasets, istrue, path):
+    which = '\\false\\'
+    if istrue:
+        which = '\\true\\'
 
-        count = 0
-        for j in train_numbers:
-            path = j
-            img, img_grey, fft2, psd1D = features(path, False)
-            x_train.append(psd1D)
-            print(f'Train №{i}')
-            print(f'Номер: {j}')
-            print(f'Прогресс: {count / 8}%')
-            count += 1
+    psds = []
+    for dataset in datasets:
+        psds1 = [[] for i in range(len(dataset[1]))]
 
-        # Создаем папку с номером набора 1К, если её нет
-        if not os.path.exists(path_folder + '\\' + str(i)):
-            os.mkdir(path_folder + '\\' + str(i))
+        # Путь до папки датасета
+        path_folder = path + which + os.path.basename(os.path.normpath(dataset[0]))
+        if not os.path.exists(path_folder):
+            os.mkdir(path_folder)
 
-        # Путь до файла сохранения
-        psd_save(path_folder + '\\' + str(i) + '\\train_psd.txt', x_train, y_train, train_numbers)
+        bookmark = len(psd_read(path_folder))
+        if len(dataset[1]) > bookmark:
+            count = bookmark
+            dataset_current = dataset[1][bookmark:]
+            for i in dataset_current:
+                psd1D = calculate_features(i)
 
-        # Тестовый набор
-        list_test = list_allK1[i].get(1)
-        test_numbers = []
-        y_test = []
-        x_test = []
-        for img in list_test:
-            truth = img[0]
-            y_test.append(truth)
-            test_numbers.append(img[1])
+                psd_save(path_folder, i, psd1D)
 
-        count = 0
-        for j in test_numbers:
-            path = j
-            print(path)
-            img, img_grey, fft2, psd1D = features(path, False)
-            x_test.append(psd1D)
-            print(f'Test №{i}')
-            print(f'Номер: {j}')
-            print(f'Прогресс: {count / 2}%')
-            count += 1
+                psds1.append(psd1D)
 
-        # Путь до файла сохранения
-        psd_save(path_folder + '\\' + str(i) + '\\test_psd.txt', x_test, y_test, test_numbers)
+                print(count, '/', len(dataset[1]))
+                count += 1
+        psds1 = psd_read(path_folder)
+        psds.append(psds1)
 
-    return x_train, y_train, x_test, y_test
+    return psds
 
 
 """
@@ -691,57 +652,103 @@ def list2psD1_2(list_allK1, path_folder, features):
 """
 
 
-def data_to_psd(n, sample, tf, path_true, path_false, path, features=calculate_features):
+def data_to_psd(size_of_sample, number_of_samples, p, path_true, path_false, path):
+    size_of_dataset = 10000
     # 1. получаем массив путей до файлов картинок и оставляем только n/2 от каждого.
-    true, false = get_data_list(n, path_true)
+    true, false = get_data_list(path_true, path_false)
 
-    # 2. помечаем 1 - true, 0 - false
-    true = [[1, true[i]] for i in range(len(true))]
-    false = [[0, false[i]] for i in range(len(false))]
+    # Приводим датасеты к одному размеру
+    for i in range(len(true)):
+        true[i][1] = true[i][1][:size_of_dataset]
 
-    # 3. соединяем и перемешиваем.
-    true_false = true + false
-    all_train, all_test = train_test_split(true_false, train_size=tf, random_state=42)
+    for i in range(len(false)):
+        false[i][1] = false[i][1][:size_of_dataset]
 
-    # 4. разбиваем массив на n/sample папок (20)
-    all_K1 = []
-    for j in range(int(n / sample)):
-        K1_train = [all_train[i] for i in range(0 + (j * int(sample * tf)), int(sample * tf) + (j * int(sample * tf)))]
-        K1_test = [all_test[i] for i in range(0 + (j * int(sample - sample * tf)),
-                                              int(sample - sample * tf) + (j * int(sample - sample * tf)))]
-        all_K1.append({0: K1_train, 1: K1_test})  # 0-train 1-test
+    # 2. Вычисляем для всех изображений psd.
+    psds_true = list2psd1_2(true, True, path + '\\datasets_psd')
+    psds_false = list2psd1_2(false, False, path + '\\datasets_psd')
 
-    # 5. Получаем массив признаков для изображений
-    x_train, y_train, x_test, y_test = list2psD1_2(all_K1, path, features)
+    true_datasets_names = [dirpath for dirpath in os.listdir(path + '\\datasets_psd' + '\\true\\')]
+    false_datasets_names = [dirpath for dirpath in os.listdir(path + '\\datasets_psd' + '\\false\\')]
+
+    # Выбираем какие наборы данных будут участвовать
+    for i in true_datasets_names:
+        if i == 'images1024x1024':
+            psds_true.pop(true_datasets_names.index(i))
+    for i in false_datasets_names:
+        if i == '1m_faces_01':
+            psds_false.pop(false_datasets_names.index(i))
+
+    # 3. Создание выборок для классификации в количестве number_of_samples
+    samples = []
+    for j in range(number_of_samples):
+        true_part_sample = []
+        number_of_true_false = int(size_of_sample / 2)  # Колличество настоящих и поддельных в 1ой выборке
+        a = number_of_true_false / len(psds_true)   # если число не целое
+        int_a = int(a)
+        if not (int_a % 2 == 0):
+            b = int((a - int_a) * len(psds_true)) + 1
+        else:
+            b = 0
+        for i in psds_true:
+            if b - 1 < 0:
+                true_part_sample += i[int_a * j: int_a * j + int_a]
+            else:
+                true_part_sample += i[(int_a + 1) * j:(int_a + 1) * j + (int_a + 1)]
+                b -= 1
+
+        false_part_sample = []
+        number_of_true_false = int(size_of_sample / 2)  # Колличество настоящих и поддельных в 1ой выборке
+        a = number_of_true_false / len(psds_false)  # если число не целое
+        int_a = int(a)
+        if not (int_a % 2 == 0):
+            b = int((a - int_a) * len(psds_false)) + 1
+        else:
+            b = 0
+        for i in psds_false:
+            if b - 1 < 0:
+                false_part_sample += i[int_a * j: int_a * j + int_a]
+            else:
+                false_part_sample += i[(int_a + 1) * j:(int_a + 1) * j + (int_a + 1)]
+                b -= 1
+
+        # соединяем и перемешиваем.
+        x = true_part_sample + false_part_sample
+        y = [[1] for i in range(number_of_true_false)] + [[0] for i in range(number_of_true_false)]
+        x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=p, random_state=42)
+        samples.append([])
+        samples[j].append(x_train)
+        samples[j].append(y_train)
+        samples[j].append(x_test)
+        samples[j].append(y_test)
+        print(j)
+
+    # 4. Сохранение выборок по отдельным папкам
+    for i in samples:
+        path_folder = f'\\split\\{samples.index(i)}'
+        for j in i:
+            file_name = ''
+            if i.index(j) == 0:
+                file_name = 'x_train.txt'
+                f = open(path + path_folder + '\\' + file_name, 'w')    # стираем старые данные
+            elif i.index(j) == 1:
+                file_name = 'y_train.txt'
+                f = open(path + path_folder + '\\' + file_name, 'w')    # стираем старые данные
+            elif i.index(j) == 2:
+                file_name = 'x_test.txt'
+                f = open(path + path_folder + '\\' + file_name, 'w')    # стираем старые данные
+            else:
+                file_name = 'y_test.txt'
+                f = open(path + path_folder + '\\' + file_name, 'w')    # стираем старые данные
+            for c in j:
+                psd_save(path + path_folder, j.index(c), c, file_name)
+        print(samples.index(i))
     return 0
 
 
-""" Сделать из этого обобщенную функцию с заменяемыми методами"""
-
-
-def data_to_features(n, sample, tf, path_true, path_false, path, features=calculate_features):
-    # 1. получаем массив путей до файлов картинок и оставляем только n/2 от каждого.
-    true, false = get_data_list(n, path_true)
-
-    # 2. помечаем 1 - true, 0 - false
-    true = [[1, true[i]] for i in range(len(true))]
-    false = [[0, false[i]] for i in range(len(false))]
-
-    # 3. соединяем и перемешиваем.
-    true_false = true + false
-    all_train, all_test = train_test_split(true_false, train_size=tf, random_state=42)
-
-    # 4. разбиваем массив на n/sample папок
-    all_K1 = []
-    for j in range(int(n / sample)):
-        K1_train = [all_train[i] for i in range(0 + (j * int(sample * tf)), int(sample * tf) + (j * int(sample * tf)))]
-        K1_test = [all_test[i] for i in range(0 + (j * int(sample - sample * tf)),
-                                              int(sample - sample * tf) + (j * int(sample - sample * tf)))]
-        all_K1.append({0: K1_train, 1: K1_test})  # 0-train 1-test
-
-    # 5. Получаем массив признаков для изображений
-    x_train, y_train, x_test, y_test = list2psD1_2(all_K1, path, features)
-    return 0
+def check_for_comparison_psd():
+    # 1. Считываем из файлов матрицу(64) для каждого изображения в каждом датасете
+    print()
 
 
 """
@@ -761,10 +768,16 @@ def classification(path, number_folders, interval):
     all_dt = []
 
     for i in range(number_folders):
-        kn, svm, dt = classifier(path + '\\' + str(i), interval)
+        x_train = psd_read(path + f'\\{i}', '\\x_train.txt')
+        y_train = psd_read(path + f'\\{i}', '\\y_train.txt')
+        x_test = psd_read(path + f'\\{i}', '\\x_test.txt')
+        y_test = psd_read(path + f'\\{i}', '\\y_test.txt')
+
+        kn, svm, dt = classifier(x_train, y_train, x_test, y_test, interval)
         all_kn.append(kn)
         all_svm.append(svm)
         all_dt.append(dt)
+        print('classified', i)
     accuracy_save(path + '\\acc.txt', all_kn, all_svm, all_dt)
 
 
@@ -783,19 +796,24 @@ def classification10(path, number_of_folders):
         all_svm = []
         all_dt = []
         intervals = []
+
+        x_train = psd_read(path + f'\\{j}', '\\x_train.txt')
+        y_train = psd_read(path + f'\\{j}', '\\y_train.txt')
+        x_test = psd_read(path + f'\\{j}', '\\x_test.txt')
+        y_test = psd_read(path + f'\\{j}', '\\y_test.txt')
         for i in range(0, 720, 10):
             if i == 710:
                 interval = [[i, i + 14]]
             else:
                 interval = [[i, i + 10]]
 
-            kn, svm, dt = classifier(path + '\\' + str(j), interval)
+            kn, svm, dt = classifier(x_train, y_train, x_test, y_test, interval)
             all_kn.append(kn)
             all_svm.append(svm)
             all_dt.append(dt)
             intervals.append(interval[0])
         print(f'Выборка:{j}')
-        save_in_1K(path + '\\' + str(j) + '\\acc10.txt', all_kn, all_svm, all_dt, intervals, mode=10)
+        save_in_1K(path + f'\\{j}\\acc10.txt', all_kn, all_svm, all_dt, intervals, mode=10)
 
 
 """
@@ -813,24 +831,27 @@ def classification20(path, number_folders):
         all_svm = []
         all_dt = []
         intervals = []
+
+        x_train = psd_read(path + f'\\{j}', '\\x_train.txt')
+        y_train = psd_read(path + f'\\{j}', '\\y_train.txt')
+        x_test = psd_read(path + f'\\{j}', '\\x_test.txt')
+        y_test = psd_read(path + f'\\{j}', '\\y_test.txt')
         for i in range(0, 720, 10):
             for k in range(10 + i, 720, 10):
-                interval = []
-                interval.append([i, i + 10])
-
+                interval = [[i, i + 10]]
                 if k == 710:
                     interval.append([k, k + 14])
                 else:
                     interval.append([k, k + 10])
 
-                kn, svm, dt = classifier(path + '\\' + str(j), interval)
+                kn, svm, dt = classifier(x_train, y_train, x_test, y_test, interval)
                 all_kn.append(kn)
                 all_svm.append(svm)
                 all_dt.append(dt)
                 intervals.append(interval[0])
                 intervals.append(interval[1])
             print(f'Выборка:{j},Интервал:{i}')
-        save_in_1K(path + '\\' + str(j) + '\\acc20.txt', all_kn, all_svm, all_dt, intervals, mode=20)
+        save_in_1K(path + f'\\{j}\\acc20.txt', all_kn, all_svm, all_dt, intervals, mode=20)
 
 
 """ ___________________________________________
@@ -1174,11 +1195,9 @@ def show_beta_statistic(beta_true, beta_false, true, false):
 
 def x_squer(dataset1, dataset2):
     c = [0 for i in range(64)]
-
     for i in range(len(c)):
         for j in range(len(dataset1)):
             c[i] += ((dataset1[j][i] - dataset2[j][i])**2)/dataset2[j][i]
-
     return c
 
 
@@ -1234,6 +1253,7 @@ def data_to_frequencies(path_true, path_false, path, size_of_dataset):
 
     true_datasets_names = [path + '\\true\\' + dirpath for dirpath in os.listdir(path + '\\true\\')]
     false_datasets_names = [path + '\\false\\' + dirpath for dirpath in os.listdir(path + '\\false\\')]
+
     # 3. отображение графика с бетта коэффициентами для каждого датасета
     show_beta_statistic(beta_true, beta_false, true_datasets_names, false_datasets_names)
 
@@ -1344,7 +1364,7 @@ def classifier_dct(x_train, y_train, x_test, y_test):
 """
 
 
-def classification_dct(path_true, path_false, path, number_of_samples, size_of_dataset, size_of_sample, p):
+def classification_dct(path, number_of_samples, size_of_sample, p, count_of_features):
     # 1. Считываем из файлов матрицу(64) для каждого изображения в каждом датасете
     beta_true, matrices_true = read_beta_matrix_of_images(True, path)
     beta_true, matrices_false = read_beta_matrix_of_images(False, path)
@@ -1358,10 +1378,13 @@ def classification_dct(path_true, path_false, path, number_of_samples, size_of_d
     samples = []
     for j in range(number_of_samples):
         true_part_sample = []
-        number_of_true_false = int(size_of_sample / 2)   # Колличество настоящих и поддельных в 1ой выборке
+        number_of_true_false = int(size_of_sample / 2)  # Колличество настоящих и поддельных в 1ой выборке
         a = number_of_true_false/len(matrices_true)     # если число не целое
         int_a = int(a)
-        b = int((a - int_a) * len(matrices_true))+1
+        if not (int_a % 2 == 0):
+            b = int((a - int_a) * len(matrices_true)) + 1
+        else:
+            b = 0
         for i in matrices_true:
             if b-1 < 0:
                 true_part_sample += i[int_a*j: int_a*j+int_a]
@@ -1373,7 +1396,10 @@ def classification_dct(path_true, path_false, path, number_of_samples, size_of_d
         number_of_true_false = int(size_of_sample / 2)  # Колличество настоящих и поддельных в 1ой выборке
         a = number_of_true_false / len(matrices_false)  # если число не целое
         int_a = int(a)
-        b = int((a - int(a)) * len(matrices_false)) + 1
+        if not (int_a % 2 == 0):
+            b = int((a - int_a) * len(matrices_false)) + 1
+        else:
+            b = 0
         for i in matrices_false:
             if b-1 < 0:
                 false_part_sample += i[int_a*j: int_a*j+int_a]
@@ -1391,7 +1417,7 @@ def classification_dct(path_true, path_false, path, number_of_samples, size_of_d
         samples[j].append(y_test)
 
     # 4. Классификация и расчёт точности для от 1 до 5 бетта коэффициентов
-    number_of_beta = 5
+    number_of_beta = count_of_features
     KN = []
     SVM = []
     DT = []
@@ -1420,3 +1446,74 @@ def classification_dct(path_true, path_false, path, number_of_samples, size_of_d
     # 5. Отрисовка граффиков точности классификации для случаев 1-5 бетта
     for i in range(number_of_beta):
         show_acc(number_of_samples, [i/2 for i in KN[i]], [i/2 for i in SVM[i]], [i/2 for i in DT[i]], title=f' при {str(i+1)} β коэфициентах')
+
+
+def check_for_comparison_dct(path, number_of_samples, p, count_of_features):
+    # 1. Считываем из файлов матрицу(64) для каждого изображения в каждом датасете
+    beta_true, matrices_true = read_beta_matrix_of_images(True, path)
+    beta_true, matrices_false = read_beta_matrix_of_images(False, path)
+
+    # 2. Сокращаем матрицу бетта значений, выбирая только те, которые есть в numbers_of_beta
+    numbers_of_beta = [35, 21, 20, 10, 9]
+    matrices_true = beta_matrix_reduction(matrices_true, numbers_of_beta)
+    matrices_false = beta_matrix_reduction(matrices_false, numbers_of_beta)
+
+    # 3. Создание выборок для классификации в колличестве number_of_samples
+
+    x = []
+    y = []
+    for i in matrices_true:
+        x += i
+        y += [1 for j in range(len(i))]
+    for i in matrices_false:
+        x += i
+        y += [0 for j in range(len(i))]
+
+    KN = []
+    SVM = []
+    DT = []
+
+    for i in range(number_of_samples):
+        sample = []
+        x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=p, random_state=42 + i)
+        sample.append(x_train)
+        sample.append(y_train)
+        sample.append(x_test)
+        sample.append(y_test)
+
+        # 4. Классификация и расчёт точности для от 1 до 5 бетта коэффициентов
+        number_of_beta = 5
+        KN1 = []
+        SVM1 = []
+        DT1 = []
+        for count in range(number_of_beta):
+            print(count+1)
+            sample_tmp = copy.deepcopy(sample)
+
+            for j in sample_tmp[0]:
+                for k in range(number_of_beta - 1, count, -1):
+                    j.pop(k)
+            for j in sample_tmp[2]:
+                for k in range(number_of_beta - 1, count, -1):
+                    j.pop(k)
+            kn, svm, dt = classifier_dct(sample_tmp[0], sample_tmp[1], sample_tmp[2], sample_tmp[3])
+            KN1.append(kn)
+            SVM1.append(svm)
+            DT1.append(dt)
+            print(kn, svm, dt)
+
+        print(f'№{i+1}')
+        KN.append(KN1)
+        SVM.append(SVM1)
+        DT.append(DT1)
+
+    # 5. Отрисовка граффиков точности классификации для случаев 1-5 бетта
+    one_procent = len(y_test) / 100
+
+    KN = list(map(list, zip(*KN)))
+    SVM = list(map(list, zip(*SVM)))
+    DT = list(map(list, zip(*DT)))
+
+    for i in range(number_of_beta):
+        show_acc(number_of_samples, [i / one_procent for i in KN[i]], [i / one_procent for i in SVM[i]],
+                 [i / one_procent for i in DT[i]], title=f' при {str(i + 1)} β коэфициентах')

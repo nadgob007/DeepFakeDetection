@@ -2,24 +2,16 @@ from datetime import datetime  # Время выполнения скрипта
 from DeepFakes.scenarios import *
 
 initial_params1 = {
-    'all_images': 20000,                        # колличество всех фотографий
-    'size_of_sample': 1000,                     # колличество фотографий в выборке (папке)
-    'number_of_samples': 0,                     # колличество выборок(папок) по size_of_sample фотографий
-    'p': 0.80,                                  # Процент тренировочной части выборки
+    'number_of_samples': 40,                    # количество выборок(папок) по size_of_sample фотографий
+    'size_of_sample': 1000,                     # количество фотографий в выборке (папке)
     'count_of_features': 724,                   # Общее количество признаков для 1 изображения
+    'p': 0.8,                                   # Процент тренировочной части выборки
     'path': "E:\\NIRS\\Frequency\\Faces-HQ2"    # путь до папки со всеми файлами
 }
-initial_params1['number_of_samples'] = int(initial_params1['all_images'] / initial_params1['size_of_sample'])
 
 initial_params2 = {
-    'all_images': 1000,                         # колличество всех фотографий
-    'size_of_sample': 1000,                     # колличество фотографий в выборке (папке)
-    'number_of_samples': 0,                     # колличество выборок(папок) по size_of_sample фотографий
-    'p': 0.80,                                  # Процент тренировочной части выборки
-    'count_of_features': 724,                   # Общее количество признаков для 1 изображения
     'path': "E:\\NIRS\\Frequency\\Faces-HQ2"    # путь до папки со всеми файлами
 }
-initial_params2['number_of_samples'] = int(initial_params2['all_images'] / initial_params2['size_of_sample'])
 
 initial_params3 = {
     'size_of_dataset': 10000,                   # размер каждого датасета
@@ -27,11 +19,18 @@ initial_params3 = {
 }
 
 initial_params4 = {
-    'size_of_dataset': 10000,                   # колличество фотографий в датасете
-    'number_of_samples': 30,                    # колличество выборок(папок) по size_of_sample фотографий
+    'size_of_dataset': 10000,                   # количество фотографий в датасете
+    'number_of_samples': 30,                    # количество выборок(папок) по size_of_sample фотографий
     'size_of_sample': 1000,                     # колличество фотографий в выборке (папке)
-    'p': 0.80,                                  # Процент тренировочной части выборки
-    'count_of_features': 5,                     # Общее количество признаков для 1 изображения ?
+    'count_of_features': 5,                     # общее количество признаков для 1 изображения
+    'p': 0.8,                                   # Процент тренировочной части выборки
+    'path': "E:\\NIRS\\Frequency\\Faces-HQ2"    # путь до папки со всеми файлами
+}
+
+initial_params5 = {
+    'number_of_samples': 5,                     # количество выборок(папок) по size_of_sample фотографий
+    'count_of_features': 5,                     # Общее количество признаков для 1 изображения
+    'p': 0.6,                                   # Процент тренировочной части выборки
     'path': "E:\\NIRS\\Frequency\\Faces-HQ2"    # путь до папки со всеми файлами
 }
 
@@ -40,13 +39,15 @@ if __name__ == '__main__':
     start_time = datetime.now()
     print('Start in:', start_time)
 
-    # scenario1(initial_params1) # Для функции классификации дописать более полную точность
+    scenario1(initial_params1)      # ДПФ
 
-    # scenario2(initial_params2)
+    # scenario2(initial_params2)    # Перенос psds
 
-    # scenario3(initial_params3)
+    # scenario3(initial_params3)    # Определение номеров бэтта коэффициентов
 
-    # scenario4(initial_params4)
+    # scenario4(initial_params4)    # Эксперементы с классификацией по выборкам 1000
+
+    # scenario5(initial_params5)    # Эксперементы с классификацией по всем данным 0.6
 
     # Конец
     print('Main выполнен за:', datetime.now() - start_time)
