@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt  # Графики
 from skimage.io import imread, imshow, show  # Отображение изображений
 from scipy.fft import fft2, fftfreq, fftshift, dct  # Преобразование фурье
 # from sklearn.metrics import classification_report   # отчёт о классификации
+from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split  # Разбиение данных на обучение и тестирования
 from sklearn.neighbors import KNeighborsClassifier  # Классификация ближайших соседей
 # from sklearn.pipeline import make_pipeline  # Классификация векторов поддержки С
@@ -265,41 +266,44 @@ def psd_read(path, file_name='\\psd.txt'):
 """
 
 
-def classifier(x_train, y_train, x_test, y_test, interval):
+def classifier(x_train, y_train, x_test, y_test):
     y_train = [int(i[0]) for i in y_train]
     y_test = [int(i[0]) for i in y_test]
 
     # Классификация ближайших соседей
     neigh = KNeighborsClassifier(n_neighbors=5)
     neigh.fit(x_train, y_train)
-
-    predicts_KN = neigh.predict(x_test)
-    accuracy_KN = 0
+    predicts_kn = neigh.predict(x_test)
+    accuracy_kn = 0
     for i in range(len(y_test)):
-        if y_test[i] == predicts_KN[i]:
-            accuracy_KN += 1
+        if y_test[i] == predicts_kn[i]:
+            accuracy_kn += 1
+    # cr = classification_report(y_test, predicts_kn)
+    # print(cr)
 
     # Классификация векторов поддержки С радиальной базисной функции
     clf = SVC(kernel='rbf', gamma='auto')
     clf.fit(x_train, y_train)
-
-    predicts_SVM = clf.predict(x_test)
-    accuracy_SVM = 0
+    predicts_svm = clf.predict(x_test)
+    accuracy_svm = 0
     for i in range(len(y_test)):
-        if y_test[i] == predicts_SVM[i]:
-            accuracy_SVM += 1
+        if y_test[i] == predicts_svm[i]:
+            accuracy_svm += 1
+    # cr = classification_report(y_test, predicts_svm)
+    # print(cr)
 
     # Классификатор дерева решений
     clf = DecisionTreeClassifier(random_state=0)
     clf.fit(x_train, y_train)
-
-    predicts_DT = clf.predict(x_test)
-    accuracy_DT = 0
+    predicts_dt = clf.predict(x_test)
+    accuracy_dt = 0
     for i in range(len(y_test)):
-        if y_test[i] == predicts_DT[i]:
-            accuracy_DT += 1
+        if y_test[i] == predicts_dt[i]:
+            accuracy_dt += 1
+    # cr = classification_report(y_test, predicts_dt)
+    # print(cr)
 
-    return accuracy_KN, accuracy_SVM, accuracy_DT
+    return accuracy_kn, accuracy_svm, accuracy_dt
 
 
 """
@@ -840,13 +844,19 @@ def classification10(path, number_of_folders):
         y_train = psd_read(path + f'\\{j}', '\\y_train.txt')
         x_test = psd_read(path + f'\\{j}', '\\x_test.txt')
         y_test = psd_read(path + f'\\{j}', '\\y_test.txt')
-        for i in range(0, 720, 10):
-            if i == 710:
-                interval = [[i, i + 14]]
-            else:
-                interval = [[i, i + 10]]
 
-            kn, svm, dt = classifier(x_train, y_train, x_test, y_test, interval)
+        for i in range(0, 720, 10):
+            interval = []
+            if i == 710:
+                interval.append([i, i + 14])
+            else:
+                interval.append([i, i + 10])
+
+            start = interval[0]
+            x_train_crop = [psd[start[0]:start[1]] for psd in x_train]
+            x_test_crop = [psd[start[0]:start[1]] for psd in x_test]
+
+            kn, svm, dt = classifier(x_train_crop, y_train, x_test_crop, y_test)
             all_kn.append(kn)
             all_svm.append(svm)
             all_dt.append(dt)
@@ -865,7 +875,7 @@ def classification10(path, number_of_folders):
 
 
 def classification20(path, number_folders):
-    for j in range(0, number_folders):
+    for j in range(number_folders):
         all_kn = []
         all_svm = []
         all_dt = []
@@ -875,6 +885,7 @@ def classification20(path, number_folders):
         y_train = psd_read(path + f'\\{j}', '\\y_train.txt')
         x_test = psd_read(path + f'\\{j}', '\\x_test.txt')
         y_test = psd_read(path + f'\\{j}', '\\y_test.txt')
+
         for i in range(0, 720, 10):
             for k in range(10 + i, 720, 10):
                 interval = [[i, i + 10]]
@@ -883,7 +894,12 @@ def classification20(path, number_folders):
                 else:
                     interval.append([k, k + 10])
 
-                kn, svm, dt = classifier(x_train, y_train, x_test, y_test, interval)
+                start = interval[0]
+                end = interval[1]
+                x_train_crop = [psd[start[0]:start[1]] + psd[end[0]:end[1]] for psd in x_train]
+                x_test_crop = [psd[start[0]:start[1]] + psd[end[0]:end[1]] for psd in x_test]
+
+                kn, svm, dt = classifier(x_train_crop, y_train, x_test_crop, y_test)
                 all_kn.append(kn)
                 all_svm.append(svm)
                 all_dt.append(dt)

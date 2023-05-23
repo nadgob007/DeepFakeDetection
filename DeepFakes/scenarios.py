@@ -40,7 +40,7 @@ def scenario1(initial_params):
     if f == 1:
         classification20(path + '\\split', initial_params['number_of_samples'])
 
-    g = 0  # Отображение тепловой карты
+    g = 1  # Отображение тепловой карты
     if g == 1:
         all_kn, all_svm, all_dt, intervals = read_acc20(path + '\\split', initial_params['number_of_samples'])
         show_temp(all_kn, all_svm, all_dt, intervals, initial_params['number_of_samples'])
