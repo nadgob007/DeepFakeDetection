@@ -41,9 +41,9 @@ if __name__ == '__main__':
     start_time = datetime.now()
     print('Start in:', start_time)
 
-    scenario1(initial_params1)      # ДПФ
+    # scenario1(initial_params1)      # ДПФ
 
-    # scenario2(initial_params2)    # Эксперементы с классификацией по всем данным 0.6 ДПФ
+    scenario2(initial_params2)    # Эксперементы с классификацией по всем данным 0.6 ДПФ
 
     # scenario3(initial_params3)    # Определение номеров бэтта коэффициентов
 

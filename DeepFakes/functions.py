@@ -320,8 +320,9 @@ def accuracy_save(path, kn, svm, dt):
     f.write(form)
     line = ''
     rows = 0
+    one_procent = len(kn)/100
     for i in range(len(kn)):
-        line += f'{i}\t {kn[i] / 2}\t {svm[i] / 2}\t {dt[i] / 2}\n'
+        line += f'{i}\t {kn[i] / one_procent}\t {svm[i] / one_procent}\t {dt[i] / one_procent}\n'
         f.write(line)
         line = ''
         rows = i
@@ -551,11 +552,12 @@ def save_in_1K(path, kn, svm, dt, intervals, mode):
     line = ''
     rows = 0
     j = 0
+    one_procent = len(kn) / 100
     for i in range(len(kn)):
         if mode == 10:
-            line += f'{intervals[j][0]}-{intervals[j][1]}\t {kn[i] / 2}\t {svm[i] / 2}\t {dt[i] / 2}\n'
+            line += f'{intervals[j][0]}-{intervals[j][1]}\t {kn[i] / one_procent}\t {svm[i] / one_procent}\t {dt[i] / one_procent}\n'
         elif mode == 20:
-            line += f'{intervals[j][0]}-{intervals[j][1]}:{intervals[j + 1][0]}-{intervals[j + 1][1]}\t {kn[i] / 2}\t {svm[i] / 2}\t {dt[i] / 2}\n'
+            line += f'{intervals[j][0]}-{intervals[j][1]}:{intervals[j + 1][0]}-{intervals[j + 1][1]}\t {kn[i] / one_procent}\t {svm[i] / one_procent}\t {dt[i] / one_procent}\n'
         f.write(line)
         line = ''
         rows = i
@@ -658,7 +660,7 @@ def list2psd1_2(datasets, istrue, path):
 
 def data_to_psd(size_of_sample, number_of_samples, p, path_true, path_false, path):
     size_of_dataset = 10000
-    # 1. получаем массив путей до файлов картинок и оставляем только n/2 от каждого.
+    # 1. создаем массив путей до каждого изображения, для каждого набора данных.
     true, false = get_data_list(path_true, path_false)
 
     # Приводим датасеты к одному размеру
@@ -751,13 +753,13 @@ def data_to_psd(size_of_sample, number_of_samples, p, path_true, path_false, pat
 
 
 def check_for_comparison_psd(path, number_of_samples, p):
-    # 1. получаем массив путей до файлов картинок и оставляем только n/2 от каждого.
+    # 1. получаем массив путей до файлов картинок.
     true = []
-    false = []
     true_datasets = [os.path.join(path + '\\true', dirpath) for dirpath in os.listdir(path + '\\true')]
     for i in true_datasets:
         true.append(psd_read(i))
 
+    false = []
     false_datasets = [os.path.join(path + '\\false', dirpath) for dirpath in os.listdir(path + '\\false')]
     for i in false_datasets:
         false.append(psd_read(i))
@@ -805,7 +807,7 @@ def check_for_comparison_psd(path, number_of_samples, p):
 """
 
 
-def classification(path, number_folders, interval):
+def classification(path, number_folders, size_of_sample, interval):
     all_kn = []
     all_svm = []
     all_dt = []
@@ -821,7 +823,7 @@ def classification(path, number_folders, interval):
         all_svm.append(svm)
         all_dt.append(dt)
         print('classified', i)
-    accuracy_save(path + '\\acc.txt', all_kn, all_svm, all_dt)
+    accuracy_save(path + '\\acc.txt', all_kn, all_svm, all_dt, size_of_sample)
 
 
 """
@@ -1282,7 +1284,7 @@ def multi_argmax(c, count):
        path_true - путь до папки с датасетами настоящих изображений, 
        path_false - путь до папки с датасетами подельных изображений, 
        path - путь до папки, 
-       size_of_dataset - колличество изображений в датасете, которое используется.
+       size_of_dataset - количество изображений в датасете, которое используется.
     Выход: отсутствует
 """
 
@@ -1309,13 +1311,13 @@ def data_to_frequencies(path_true, path_false, path, size_of_dataset):
     true_datasets_names = [path + '\\true\\' + dirpath for dirpath in os.listdir(path + '\\true\\')]
     false_datasets_names = [path + '\\false\\' + dirpath for dirpath in os.listdir(path + '\\false\\')]
 
-    # 3. отображение графика с бетта коэффициентами для каждого датасета
+    # 3. отображение графика с бетта коэффициентами для каждого датасета todo: сделать отдельным сценарием
     show_beta_statistic(beta_true, beta_false, true_datasets_names, false_datasets_names)
 
     # 4. Вычисляем расстояние χ
     datasets_names = [os.path.basename(os.path.normpath(i[0])) for i in true] + [os.path.basename(os.path.normpath(i[0])) for i in false]
     datasets = matrices_true + matrices_false
-    datasets = [i[:len(min(datasets))] for i in datasets]
+    datasets = [i[:len(min(datasets))] for i in datasets]   # todo: лучше к одному значению определяемому пользователем
     x = []
 
     count = 0
@@ -1327,7 +1329,7 @@ def data_to_frequencies(path_true, path_false, path, size_of_dataset):
 
     max_c = [multi_argmax(i, 6) for i in x]
     for i in range(0, len(max_c), 3):
-        print(max_c[i], max_c[i+1], max_c[i+2])
+        print(max_c[i], max_c[i+1], max_c[i+2])     # todo: возможно другую визуализацию
         print('\n')
 
 
@@ -1498,9 +1500,15 @@ def classification_dct(path, number_of_samples, size_of_sample, p, count_of_feat
         SVM.append(SVM1)
         DT.append(DT1)
 
-    # 5. Отрисовка граффиков точности классификации для случаев 1-5 бета
+    # 5. Отрисовка граффиков точности классификации для случаев 1-5 бета todo точно i не надо на j заменить?
+    one_procent = len(KN) / 100
+
     for i in range(number_of_beta):
-        show_acc(number_of_samples, [i/2 for i in KN[i]], [i/2 for i in SVM[i]], [i/2 for i in DT[i]], title=f' при {str(i+1)} β коэфициентах')
+        show_acc(number_of_samples,
+                 [i/one_procent for i in KN[i]],
+                 [i/one_procent for i in SVM[i]],
+                 [i/one_procent for i in DT[i]],
+                 title=f' при {str(i+1)} β коэфициентах')
 
 
 def check_for_comparison_dct(path, number_of_samples, p, count_of_features):
