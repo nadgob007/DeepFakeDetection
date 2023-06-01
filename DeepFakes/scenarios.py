@@ -185,5 +185,7 @@ def scenario9(initial_params):
 
 def scenario10(initial_params):
     path = initial_params['path']
-    check_for_comparison_dct(path + '\\datasets', initial_params['number_of_samples'], initial_params['p'],
-                             initial_params['count_of_features'])
+    check_for_comparison_dct(path + '\\datasets',
+                             initial_params['number_of_samples'],
+                             initial_params['size_of_sample'],
+                             initial_params['p'])

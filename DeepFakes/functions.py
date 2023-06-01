@@ -510,9 +510,9 @@ def show_acc(num, all_kn, all_svm, all_dt, title):
         avg = [round(np.mean(all_kn), 1), round(np.mean(all_svm), 1), round(np.mean(all_dt), 1)]
         avg_str = f'\navg kn:{avg[0]},    svm:{avg[1]},   dt:{avg[2]}'
 
-    y1 = [all_kn[i] for i in range(len(all_kn))]
-    y2 = [all_svm[i] for i in range(len(all_svm))]
-    y3 = [all_dt[i] for i in range(len(all_dt))]
+    y1 = all_kn[:]
+    y2 = all_svm[:]
+    y3 = all_dt[:]
 
     # y_masked = np.ma.masked_where(int(y1) < 50, y1)
 
@@ -1477,11 +1477,11 @@ def classification_dct(path, number_of_samples, size_of_sample, p, file_read='dc
         kn1 = []
         svm1 = []
         dt1 = []
-        for i in samples_tmp:
-            a = beta_matrix_reduction(i[0], special_beta)
-            b = beta_matrix_reduction(i[2], special_beta)
+        for sample in samples_tmp:
+            a = beta_matrix_reduction(sample[0], special_beta)
+            b = beta_matrix_reduction(sample[2], special_beta)
 
-            kn, svm, dt = classifier_dct(a, i[1], b, i[3])
+            kn, svm, dt = classifier_dct(a, sample[1], b, sample[3])
             kn1.append(kn)
             svm1.append(svm)
             dt1.append(dt)
@@ -1501,18 +1501,12 @@ def classification_dct(path, number_of_samples, size_of_sample, p, file_read='dc
                  title=f' при {str(i + 1)} β коэфициентах')
 
 
-def check_for_comparison_dct(path, number_of_samples, p, count_of_features):
+def check_for_comparison_dct(path, number_of_samples, size_of_sample, p, file_read='dct.txt', file_special='special_beta.txt'):
     # 1. Считываем из файлов матрицу(64) для каждого изображения в каждом датасете
-    beta_true, matrices_true = read_beta_matrix_of_images(True, path)
-    beta_false, matrices_false = read_beta_matrix_of_images(False, path)
-
-    # 2. Сокращаем матрицу бета значений, выбирая только те, которые есть в numbers_of_beta
-    numbers_of_beta = [35, 21, 20, 10, 9]
-    matrices_true = beta_matrix_reduction(matrices_true, numbers_of_beta)
-    matrices_false = beta_matrix_reduction(matrices_false, numbers_of_beta)
+    beta_true, matrices_true = read_beta_matrix_of_images(True, path, file_name=file_read)
+    beta_false, matrices_false = read_beta_matrix_of_images(False, path, file_name=file_read)
 
     # 3. Создание выборок для классификации в колличестве number_of_samples
-
     x = []
     y = []
     for i in matrices_true:
@@ -1522,10 +1516,7 @@ def check_for_comparison_dct(path, number_of_samples, p, count_of_features):
         x += i
         y += [0 for j in range(len(i))]
 
-    KN = []
-    SVM = []
-    DT = []
-
+    samples = [[] for i in range(number_of_samples)]
     for i in range(number_of_samples):
         sample = []
         x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=p, random_state=42 + i)
@@ -1533,40 +1524,44 @@ def check_for_comparison_dct(path, number_of_samples, p, count_of_features):
         sample.append(y_train)
         sample.append(x_test)
         sample.append(y_test)
+        samples[i] = sample
 
-        # 4. Классификация и расчёт точности для от 1 до 5 бетта коэффициентов
-        number_of_beta = 5
-        KN1 = []
-        SVM1 = []
-        DT1 = []
-        for count in range(number_of_beta):
-            print(count+1)
-            sample_tmp = copy.deepcopy(sample)
+    # 3. Сокращаем матрицу бета значений, выбирая только те, которые есть в numbers_of_beta
+    special_betas = dct_read(path, file_name=file_special)
 
-            for j in sample_tmp[0]:
-                for k in range(number_of_beta - 1, count, -1):
-                    j.pop(k)
-            for j in sample_tmp[2]:
-                for k in range(number_of_beta - 1, count, -1):
-                    j.pop(k)
-            kn, svm, dt = classifier_dct(sample_tmp[0], sample_tmp[1], sample_tmp[2], sample_tmp[3])
-            KN1.append(kn)
-            SVM1.append(svm)
-            DT1.append(dt)
+    # 4. Классификация и расчёт точности для от 1 до 10 бетта коэффициентов
+    all_kn = []
+    all_svm = []
+    all_dt = []
+
+    for sample in samples:
+        print('Выборка', samples.index(sample) + 1)
+        sample_tmp = copy.deepcopy(sample)
+        kn1 = []
+        svm1 = []
+        dt1 = []
+        for special_beta in special_betas:
+            a = beta_matrix_reduction(sample_tmp[0], special_beta)
+            b = beta_matrix_reduction(sample_tmp[2], special_beta)
+            kn, svm, dt = classifier_dct(a, sample_tmp[1], b, sample_tmp[3])
+            kn1.append(kn)
+            svm1.append(svm)
+            dt1.append(dt)
             print(kn, svm, dt)
+        all_kn.append(kn1)
+        all_svm.append(svm1)
+        all_dt.append(dt1)
 
-        print(f'№{i+1}')
-        KN.append(KN1)
-        SVM.append(SVM1)
-        DT.append(DT1)
+    # 5. Отрисовка граффиков точности классификации для случаев 1-10 бетта
+    one_procent = size_of_sample * (1 - p) / 100
 
-    # 5. Отрисовка граффиков точности классификации для случаев 1-5 бетта
-    one_procent = len(y_test) / 100
+    all_kn = list(map(list, zip(*all_kn)))
+    all_svm = list(map(list, zip(*all_svm)))
+    all_dt = list(map(list, zip(*all_dt)))
 
-    KN = list(map(list, zip(*KN)))
-    SVM = list(map(list, zip(*SVM)))
-    DT = list(map(list, zip(*DT)))
-
-    for i in range(number_of_beta):
-        show_acc(number_of_samples, [i / one_procent for i in KN[i]], [i / one_procent for i in SVM[i]],
-                 [i / one_procent for i in DT[i]], title=f' при {str(i + 1)} β коэфициентах')
+    for i in range(len(special_betas)):
+        show_acc(number_of_samples,
+                 [i / one_procent for i in all_kn[i]],
+                 [i / one_procent for i in all_svm[i]],
+                 [i / one_procent for i in all_dt[i]],
+                 title=f' при {i + 1} β коэфициентах')
