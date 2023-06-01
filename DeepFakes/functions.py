@@ -926,22 +926,21 @@ def classification20(path, number_folders):
 """
 
 
-def cosinus_trans(img_nogrey):
+def cosinus_trans(img_nogrey, block_size=8):
     img = imread(img_nogrey)
     rgb_weights = [0.2989, 0.5870, 0.1140]
     grayscale_pic = np.dot(img[..., :3], rgb_weights)
-    img_grey = color.rgb2gray(img)  # Изображение в оттенках серого
+    # img_grey = color.rgb2gray(img)  # Изображение в оттенках серого
     img_grey = grayscale_pic
 
     w, h = img_grey.shape
-    f = 8
-    count = int(w / f)
+    count = int(w / block_size)
     blocks = []
-    averages = [[] for i in range(f * f)]
+    averages = [[] for i in range(block_size * block_size)]
 
     for i in range(count):
         for j in range(count):
-            block = img_grey[i * f:(i * f + f), j * f:(j * f + f)]
+            block = img_grey[i * block_size:(i * block_size + block_size), j * block_size:(j * block_size + block_size)]
             blocks.append(block)
 
             # Косинусное преобразование
@@ -1102,9 +1101,9 @@ def get_datasets_paths(path_true, path_false):
 """
 
 
-def dct_save(path, name, averages_beta):
+def dct_save(path, name, averages_beta, file_name='dct.txt'):
     # Сохраняем 1 массив созданый по 1 изображению
-    f = open(path + '\\' + 'dct.txt', 'a')
+    f = open(path + f'\\{file_name}', 'a')
     line = ''
     line += str(name) + '\t' + str([i for i in averages_beta]) + '\n'
     f.write(line)
@@ -1118,8 +1117,8 @@ def dct_save(path, name, averages_beta):
 """
 
 
-def dct_read(path):
-    file_path = path + '\\' + 'dct.txt'
+def dct_read(path, file_name='dct.txt'):
+    file_path = path + f'\\{file_name}'
     if not os.path.exists(file_path):
         f = open(file_path, 'a')
         f.close()
@@ -1155,7 +1154,7 @@ def dct_read(path):
 """
 
 
-def beta_matrix_of_images(datasets, istrue, path):
+def beta_matrix_of_images(datasets, istrue, path, file_name, block_size):
     which = '\\false\\'
     if istrue:
         which = '\\true\\'
@@ -1163,25 +1162,27 @@ def beta_matrix_of_images(datasets, istrue, path):
     beta_matrix = []
     matrices_images = []
     for dataset in datasets:
-        averages = [[] for i in range(len(dataset[1]))]
+        averages = [[] for i in range(block_size*block_size)]
 
         # Путь до папки датасета
         path_folder = path + which + os.path.basename(os.path.normpath(dataset[0]))
         if not os.path.exists(path_folder):
             os.mkdir(path_folder)
 
-        bookmark = len(dct_read(path_folder))
+        bookmark = len(dct_read(path_folder, file_name=file_name))
         if len(dataset[1]) > bookmark:
             count = bookmark
             dataset_c = dataset[1][bookmark:]
             for i in dataset_c:
-                averages_beta = cosinus_trans(i)
-                dct_save(path_folder, i, averages_beta)
+
+                averages_beta = cosinus_trans(i, block_size=block_size)
+                dct_save(path_folder, i, averages_beta, file_name=file_name)
                 for j in range(len(averages_beta)):
                     averages[j].append(averages_beta[j])
-                print(count, '/', len(dataset[1]))
+                print(count, '/', len(dataset[1]), block_size, dataset[0])
                 count += 1
-        averages = dct_read(path_folder)
+
+        averages = dct_read(path_folder, file_name=file_name)
         matrices_images.append(averages)
         transpose_averages = [*zip(*averages)]
         beta = [np.mean(j) for j in transpose_averages]
@@ -1191,7 +1192,7 @@ def beta_matrix_of_images(datasets, istrue, path):
 
 
 # Чтение файлов dct.txt
-def read_beta_matrix_of_images(istrue, path):
+def read_beta_matrix_of_images(istrue, path, file_name):
     which = '\\false\\'
     if istrue:
         which = '\\true\\'
@@ -1200,7 +1201,7 @@ def read_beta_matrix_of_images(istrue, path):
     datasets = [path + which + dirpath for dirpath in os.listdir(path + which)]
     for path_folder in datasets:
         # Путь до папки датасета
-        averages = dct_read(path_folder)
+        averages = dct_read(path_folder, file_name=file_name)
         matrices_images.append(averages)
         # средняя матрица для всего датасета
         transpose_averages = [*zip(*averages)]
@@ -1226,12 +1227,12 @@ def show_beta_statistic(beta_true, beta_false, true, false):
 
     for i in range(len(true)):
         x = beta_true[i][1:]
-        y = [j for j in range(1, 64)]
+        y = [j for j in range(1, len(beta_true[i]))]
         ax.plot(y, x, label=os.path.basename(os.path.normpath(true[i])) + ' (Настоящие)')
 
     for i in range(len(false)):
         x = beta_false[i][1:]
-        y = [j for j in range(1, 64)]
+        y = [j for j in range(1, len(beta_false[i]))]
         ax.plot(y, x, label=os.path.basename(os.path.normpath(false[i])) + ' (Сгенерированые)')
 
     ax.set_xlabel('Номер β коэффициента')
@@ -1251,7 +1252,7 @@ def show_beta_statistic(beta_true, beta_false, true, false):
 
 
 def x_squer(dataset1, dataset2):
-    c = [0 for i in range(64)]
+    c = [0 for i in range(len(dataset1[0]))]
     for i in range(len(c)):
         for j in range(len(dataset1)):
             c[i] += ((dataset1[j][i] - dataset2[j][i])**2)/dataset2[j][i]
@@ -1268,14 +1269,14 @@ def x_squer(dataset1, dataset2):
 
 
 def multi_argmax(c, count):
-    c2 = c.copy()
-    a = []
+    arr = c
+    reduced_arr = []
     for i in range(count):
-        arg = np.argmax(c2)
-        max = round(np.max(c2))
-        a.append((arg, max))
-        c2[arg] = 0
-    return a
+        arg = np.argmax(arr)
+        maximum = round(np.max(arr))
+        reduced_arr.append((arg, maximum))
+        arr[arg] = 0
+    return reduced_arr
 
 
 """
@@ -1302,35 +1303,33 @@ def data_to_frequencies(path_true, path_false, path, size_of_dataset):
             false[i][1] = false[i][1][:size_of_dataset]
 
         # 2. Высчитываем и сохраняем матрицу(64) для каждого изображения в каждом датасете
-        beta_true, matrices_true = beta_matrix_of_images(true, True, path)
-        beta_false, matrices_false = beta_matrix_of_images(false, False, path)
-    else:
-        beta_true, matrices_true = read_beta_matrix_of_images(True, path)
-        beta_false, matrices_false = read_beta_matrix_of_images(False, path)
+        beta_true, matrices_true = beta_matrix_of_images(true, True, path, block_size=8, file_name=f'dct{8}.txt')
+        beta_false, matrices_false = beta_matrix_of_images(false, False, path, block_size=8, file_name=f'dct{8}.txt')
 
-    true_datasets_names = [path + '\\true\\' + dirpath for dirpath in os.listdir(path + '\\true\\')]
-    false_datasets_names = [path + '\\false\\' + dirpath for dirpath in os.listdir(path + '\\false\\')]
 
-    # 3. отображение графика с бетта коэффициентами для каждого датасета todo: сделать отдельным сценарием
-    show_beta_statistic(beta_true, beta_false, true_datasets_names, false_datasets_names)
+def data_to_frequencies1(path_true, path_false, path, size_of_dataset):
+    sizes = [8 * (2 ** i) for i in range(1, 5)]
 
-    # 4. Вычисляем расстояние χ
-    datasets_names = [os.path.basename(os.path.normpath(i[0])) for i in true] + [os.path.basename(os.path.normpath(i[0])) for i in false]
-    datasets = matrices_true + matrices_false
-    datasets = [i[:len(min(datasets))] for i in datasets]   # todo: лучше к одному значению определяемому пользователем
-    x = []
+    for block_size in sizes:
+        if os.path.exists(path_true) and [dirpath for dirpath in os.listdir(path_true)]:
+            # 1. получаем массив путей до файлов картинок.
+            true, false = get_datasets_paths(path_true, path_false)
 
-    count = 0
-    for i in datasets:
-        for j in datasets:
-            x.append(x_squer(i, j))
-            count += 1
-            print(count)
+            # Приводим датасеты к одному размеру
+            for i in range(len(true)):
+                true[i][1] = true[i][1][:size_of_dataset]
 
-    max_c = [multi_argmax(i, 6) for i in x]
-    for i in range(0, len(max_c), 3):
-        print(max_c[i], max_c[i+1], max_c[i+2])     # todo: возможно другую визуализацию
-        print('\n')
+            for i in range(len(false)):
+                false[i][1] = false[i][1][:size_of_dataset]
+
+            # 2. Высчитываем и сохраняем матрицу(64) для каждого изображения в каждом датасете
+            beta_true, matrices_true = beta_matrix_of_images(true, True, path, block_size=block_size,
+                                                             file_name=f'dct{block_size}.txt')
+            beta_false, matrices_false = beta_matrix_of_images(false, False, path, block_size=block_size,
+                                                               file_name=f'dct{block_size}.txt')
+        else:
+            beta_true, matrices_true = read_beta_matrix_of_images(True, path, file_name=f'dct{block_size}.txt')
+            beta_false, matrices_false = read_beta_matrix_of_images(False, path, file_name=f'dct{block_size}.txt')
 
 
 """ ___________________________________________
@@ -1349,13 +1348,10 @@ def data_to_frequencies(path_true, path_false, path, size_of_dataset):
 def beta_matrix_reduction(matrices, numbers_of_beta):
     matrices_tmp = []
     for dataset in matrices:
-        tmp1 = []
-        for i in dataset:
-            tmp = []
-            for j in numbers_of_beta:
-                tmp.append(i[j])
-            tmp1.append(tmp)
-        matrices_tmp.append(tmp1)
+        tmp = []
+        for j in numbers_of_beta:
+            tmp.append(dataset[int(j)])
+        matrices_tmp.append(tmp)
     return matrices_tmp
 
 
@@ -1421,100 +1417,94 @@ def classifier_dct(x_train, y_train, x_test, y_test):
 """
 
 
-def classification_dct(path, number_of_samples, size_of_sample, p, count_of_features):
+def classification_dct(path, number_of_samples, size_of_sample, p, file_read='dct.txt', file_special='special_beta.txt'):
     # 1. Считываем из файлов матрицу(64) для каждого изображения в каждом датасете
-    beta_true, matrices_true = read_beta_matrix_of_images(True, path)
-    beta_true, matrices_false = read_beta_matrix_of_images(False, path)
+    beta_true, matrices_true = read_beta_matrix_of_images(True, path, file_name=file_read)
+    beta_false, matrices_false = read_beta_matrix_of_images(False, path, file_name=file_read)
 
-    # 2. Сокращаем матрицу бетта значений, выбирая только те, которые есть в numbers_of_beta
-    numbers_of_beta = [35, 21, 20, 10, 9]
-    matrices_true = beta_matrix_reduction(matrices_true, numbers_of_beta)
-    matrices_false = beta_matrix_reduction(matrices_false, numbers_of_beta)
-
-    # 3. Создание выборок для классификации в колличестве number_of_samples
-    samples = []
+    # 2. Создание выборок для классификации в колличестве number_of_samples
+    samples = [[] for i in range(number_of_samples)]
     for j in range(number_of_samples):
+        print(j)
         true_part_sample = []
         number_of_true_false = int(size_of_sample / 2)  # Колличество настоящих и поддельных в 1ой выборке
-        a = number_of_true_false/len(matrices_true)     # если число не целое
+        a = number_of_true_false / len(matrices_true)  # если число не целое
         int_a = int(a)
-        if not (int_a % 2 == 0):
+        if int_a % 2 == 0:
             b = int((a - int_a) * len(matrices_true)) + 1
         else:
             b = 0
         for i in matrices_true:
-            if b-1 < 0:
-                true_part_sample += i[int_a*j: int_a*j+int_a]
+            if b - 1 < 0:
+                true_part_sample += i[int_a * j: int_a * j + int_a]
             else:
-                true_part_sample += i[(int_a+1)*j:(int_a+1)*j+(int_a+1)]
+                true_part_sample += i[(int_a + 1) * j:(int_a + 1) * j + (int_a + 1)]
                 b -= 1
 
         false_part_sample = []
         number_of_true_false = int(size_of_sample / 2)  # Колличество настоящих и поддельных в 1ой выборке
         a = number_of_true_false / len(matrices_false)  # если число не целое
         int_a = int(a)
-        if not (int_a % 2 == 0):
+        if int_a % 2 == 0:
             b = int((a - int_a) * len(matrices_false)) + 1
         else:
             b = 0
         for i in matrices_false:
-            if b-1 < 0:
-                false_part_sample += i[int_a*j: int_a*j+int_a]
+            if b - 1 < 0:
+                false_part_sample += i[int_a * j: int_a * j + int_a]
             else:
-                false_part_sample += i[(int_a+1)*j:(int_a+1)*j+(int_a+1)]
+                false_part_sample += i[(int_a + 1) * j:(int_a + 1) * j + (int_a + 1)]
                 b -= 1
 
         x = true_part_sample + false_part_sample
         y = [1 for i in range(number_of_true_false)] + [0 for i in range(number_of_true_false)]
         x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=p, random_state=42)
-        samples.append([])
         samples[j].append(x_train)
         samples[j].append(y_train)
         samples[j].append(x_test)
         samples[j].append(y_test)
 
-    # 4. Классификация и расчёт точности для от 1 до 5 бетта коэффициентов
-    number_of_beta = count_of_features
-    KN = []
-    SVM = []
-    DT = []
-    for count in range(number_of_beta):
-        print(count+1)
+    # 3. Сокращаем матрицу бетта значений, выбирая только те, которые есть в numbers_of_beta
+    special_betas = dct_read(path, file_name=file_special)
+
+    # 4. Классификация и расчёт точности для от 1 до 10 бетта коэффициентов
+    all_kn = []
+    all_svm = []
+    all_dt = []
+    for special_beta in special_betas:
+        print(special_betas.index(special_beta) + 1)
         samples_tmp = copy.deepcopy(samples)
-        KN1 = []
-        SVM1 = []
-        DT1 = []
+        kn1 = []
+        svm1 = []
+        dt1 = []
         for i in samples_tmp:
-            for j in i[0]:
-                for k in range(number_of_beta-1, count, -1):
-                    j.pop(k)
-            for j in i[2]:
-                for k in range(number_of_beta-1, count, -1):
-                    j.pop(k)
-            kn, svm, dt = classifier_dct(i[0], i[1], i[2], i[3])
-            KN1.append(kn)
-            SVM1.append(svm)
-            DT1.append(dt)
+            a = beta_matrix_reduction(i[0], special_beta)
+            b = beta_matrix_reduction(i[2], special_beta)
+
+            kn, svm, dt = classifier_dct(a, i[1], b, i[3])
+            kn1.append(kn)
+            svm1.append(svm)
+            dt1.append(dt)
             print(kn, svm, dt)
-        KN.append(KN1)
-        SVM.append(SVM1)
-        DT.append(DT1)
+        all_kn.append(kn1)
+        all_svm.append(svm1)
+        all_dt.append(dt1)
 
-    # 5. Отрисовка граффиков точности классификации для случаев 1-5 бета todo точно i не надо на j заменить?
-    one_procent = len(KN) / 100
+    # 5. Отрисовка граффиков точности классификации для случаев 1-10 бета
+    one_procent = size_of_sample*(1-p) / 100
 
-    for i in range(number_of_beta):
+    for i in range(len(special_betas)):
         show_acc(number_of_samples,
-                 [i/one_procent for i in KN[i]],
-                 [i/one_procent for i in SVM[i]],
-                 [i/one_procent for i in DT[i]],
-                 title=f' при {str(i+1)} β коэфициентах')
+                 [j / one_procent for j in all_kn[i]],
+                 [j / one_procent for j in all_svm[i]],
+                 [j / one_procent for j in all_dt[i]],
+                 title=f' при {str(i + 1)} β коэфициентах')
 
 
 def check_for_comparison_dct(path, number_of_samples, p, count_of_features):
     # 1. Считываем из файлов матрицу(64) для каждого изображения в каждом датасете
     beta_true, matrices_true = read_beta_matrix_of_images(True, path)
-    beta_true, matrices_false = read_beta_matrix_of_images(False, path)
+    beta_false, matrices_false = read_beta_matrix_of_images(False, path)
 
     # 2. Сокращаем матрицу бета значений, выбирая только те, которые есть в numbers_of_beta
     numbers_of_beta = [35, 21, 20, 10, 9]

@@ -58,6 +58,7 @@ def scenario2(initial_params):
 
 
 """
+_______________________________________________________________________________________________________________________
      Определение номеров бэтта коэффициентов 
 """
 
@@ -67,15 +68,114 @@ def scenario3(initial_params):
     data_to_frequencies(path + '\\true2', path + '\\false2', path + '\\datasets', initial_params['size_of_dataset'])
 
 
+# Отображение графика с бетта коэффициентами для каждого датасета
+def scenario4(initial_params):
+    path = initial_params['path']
+    beta_true, matrices_true = read_beta_matrix_of_images(True, path, file_name=f'dct.txt')
+    beta_false, matrices_false = read_beta_matrix_of_images(False, path, file_name=f'dct.txt')
+
+    true_datasets_names = [path + '\\true\\' + dirpath for dirpath in os.listdir(path + '\\true\\')]
+    false_datasets_names = [path + '\\false\\' + dirpath for dirpath in os.listdir(path + '\\false\\')]
+
+    # отображение графика с бетта коэффициентами для каждого датасета
+    show_beta_statistic(beta_true, beta_false, true_datasets_names, false_datasets_names)
+
+
+# Отображение графика значений хи квадрат
+def scenario5(initial_params, file_read=f'dct.txt', file_save='special_beta.txt'):
+    path = initial_params['path']
+    beta_true, matrices_true = read_beta_matrix_of_images(True, path, file_name=file_read)
+    beta_false, matrices_false = read_beta_matrix_of_images(False, path, file_name=file_read)
+
+    # 4. Вычисляем расстояние χ
+    datasets = matrices_true + matrices_false
+    x = [[] for i in datasets]
+    special_beta = []
+
+    for f in range(1, initial_params['count_of_features']+1):
+        count = 0
+        # fig, ax = plt.subplots(6, 6)
+        all_beta = []
+        for i in datasets:
+            line = datasets.index(i)
+            for j in datasets:
+                col = datasets.index(j)
+                arr = x_squer(i, j)
+                arr = multi_argmax(arr, f)
+                x[line].append(arr)
+                count += 1
+                # print(f'{count}/{len(datasets) * len(datasets)}')
+                a = arr
+                x1 = [i[0] for i in a]
+                y1 = [i[1] for i in a]
+
+                # Только расстояни для T->F и F->T
+                if (line < 3 and col > 2) or (line > 2 and col < 3):
+                    all_beta = all_beta + x1
+
+                plt.ylim()
+                # ax[line, col].bar(x1, y1, width=0.2, label='KN')
+                # ax[line, col].legend(loc="upper left")
+
+                # ax[line, col].set_title(f'хи квадрат {line+1} и {col+1}]')
+                # ax[line, col].set_facecolor('seashell')
+                # fig.set_figwidth(12)  # ширина Figure
+                # fig.set_figheight(6)  # высота Figure
+                # fig.set_facecolor('floralwhite')
+                #plt.show()
+        print(f'{f}', np.unique(all_beta), len(np.unique(all_beta)))
+        special_beta.append([f, np.unique(all_beta)])
+
+    for i in special_beta:
+        dct_save(path, i[0], i[1], file_name=file_save)
+
+
 """
      Эксперементы с классификацией
 """
 
 
-def scenario4(initial_params):
+# 1. Эксперементы. 60 выборок по 1000. окно 8. коэф 1-10
+def scenario6(initial_params):
     path = initial_params['path']
     classification_dct(path + '\\datasets', initial_params['number_of_samples'], initial_params['size_of_sample'],
-                       initial_params['p'], initial_params['count_of_features'])
+                       initial_params['p'])
+
+
+# Расчёт вектора бета коэфициентов для изображения с разным размером окна. коэф 1-10
+def scenario7(initial_params):
+    path = initial_params['path']
+    data_to_frequencies1(path + '\\true2', path + '\\false2', path + '\\datasets', initial_params['size_of_dataset'])
+
+
+# Отображение графика бетта коэфициентов с разной величиной окна
+def scenario8(initial_params):
+    path = initial_params['path'] + '\\datasets'
+    sizes = [8 * (2 ** i) for i in range(1, 5)]
+    for block_size in sizes:
+        print(f'Размер блоков: {block_size}')
+        beta_true, matrices_true = read_beta_matrix_of_images(True, path, file_name=f'dct{block_size}.txt')
+        beta_false, matrices_false = read_beta_matrix_of_images(False, path, file_name=f'dct{block_size}.txt')
+
+        true_datasets_names = [path + '\\true\\' + dirpath for dirpath in os.listdir(path + '\\true\\')]
+        false_datasets_names = [path + '\\false\\' + dirpath for dirpath in os.listdir(path + '\\false\\')]
+
+        # Отображение графика с бетта коэффициентами для каждого датасета
+        show_beta_statistic(beta_true, beta_false, true_datasets_names, false_datasets_names)
+
+
+# Эксперементы с классификацией по выборкам 1000. с разным размером окна. коэф 1-10
+def scenario9(initial_params):
+    sizes = [8 * (2 ** i) for i in range(1, 5)]
+
+    # for block_size in sizes:
+    #     scenario5(initial_params, file_read=f'dct{block_size}.txt', file_save=f'special_beta{block_size}.txt')
+
+    for block_size in sizes:
+        classification_dct(initial_params['path'],
+                           initial_params['number_of_samples'],
+                           initial_params['size_of_sample'],
+                           initial_params['p'], file_read=f'dct{block_size}.txt', file_special=f'special_beta{block_size}.txt')
 
 
 """
@@ -83,7 +183,7 @@ def scenario4(initial_params):
 """
 
 
-def scenario5(initial_params):
+def scenario10(initial_params):
     path = initial_params['path']
     check_for_comparison_dct(path + '\\datasets', initial_params['number_of_samples'], initial_params['p'],
                              initial_params['count_of_features'])
