@@ -686,48 +686,51 @@ def data_to_psd(size_of_sample, number_of_samples, p, path_true, path_false, pat
             psds_false.pop(false_datasets_names.index(i))
 
     # 3. Создание выборок для классификации в количестве number_of_samples
-    samples = []
+    samples = [[] for i in range(number_of_samples)]
     for j in range(number_of_samples):
+        print(j)
         true_part_sample = []
         number_of_true_false = int(size_of_sample / 2)  # Колличество настоящих и поддельных в 1ой выборке
         a = number_of_true_false / len(psds_true)   # если число не целое
-        int_a = int(a)
-        if not (int_a % 2 == 0):
-            b = int((a - int_a) * len(psds_true)) + 1
-        else:
-            b = 0
+        int_a = number_of_true_false // len(psds_true)
+
         for i in psds_true:
-            if b - 1 < 0:
-                true_part_sample += i[int_a * j: int_a * j + int_a]
-            else:
-                true_part_sample += i[(int_a + 1) * j:(int_a + 1) * j + (int_a + 1)]
-                b -= 1
+            true_part_sample += i[int_a * j: int_a * j + int_a]
+
+        remainder = 1
+        while a:
+            for i in psds_true:
+                true_part_sample.append(i[int_a * j + int_a + remainder])
+                a -= 1
+                if not a:
+                    break
+            remainder += 1
 
         false_part_sample = []
         number_of_true_false = int(size_of_sample / 2)  # Колличество настоящих и поддельных в 1ой выборке
-        a = number_of_true_false / len(psds_false)  # если число не целое
-        int_a = int(a)
-        if not (int_a % 2 == 0):
-            b = int((a - int_a) * len(psds_false)) + 1
-        else:
-            b = 0
+        a = number_of_true_false % len(psds_false)
+        int_a = number_of_true_false // len(psds_false)
+
         for i in psds_false:
-            if b - 1 < 0:
-                false_part_sample += i[int_a * j: int_a * j + int_a]
-            else:
-                false_part_sample += i[(int_a + 1) * j:(int_a + 1) * j + (int_a + 1)]
-                b -= 1
+            false_part_sample += i[int_a * j: int_a * j + int_a]
+
+        remainder = 1
+        while a:
+            for i in psds_false:
+                false_part_sample.append(i[int_a * j + int_a + remainder])
+                a -= 1
+                if not a:
+                    break
+            remainder += 1
 
         # соединяем и перемешиваем.
         x = true_part_sample + false_part_sample
         y = [[1] for i in range(number_of_true_false)] + [[0] for i in range(number_of_true_false)]
         x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=p, random_state=42)
-        samples.append([])
         samples[j].append(x_train)
         samples[j].append(y_train)
         samples[j].append(x_test)
         samples[j].append(y_test)
-        print(j)
 
     # 4. Сохранение выборок по отдельным папкам
     for i in samples:
@@ -1428,34 +1431,39 @@ def classification_dct(path, number_of_samples, size_of_sample, p, file_read='dc
         print(j)
         true_part_sample = []
         number_of_true_false = int(size_of_sample / 2)  # Колличество настоящих и поддельных в 1ой выборке
-        a = number_of_true_false / len(matrices_true)  # если число не целое
-        int_a = int(a)
-        if int_a % 2 == 0:
-            b = int((a - int_a) * len(matrices_true)) + 1
-        else:
-            b = 0
+        a = number_of_true_false % len(matrices_true)
+        int_a = number_of_true_false // len(matrices_true)
+
         for i in matrices_true:
-            if b - 1 < 0:
-                true_part_sample += i[int_a * j: int_a * j + int_a]
-            else:
-                true_part_sample += i[(int_a + 1) * j:(int_a + 1) * j + (int_a + 1)]
-                b -= 1
+            true_part_sample += i[int_a * j: int_a * j + int_a]
+
+        remainder = 1
+        while a:
+            for i in matrices_true:
+                true_part_sample.append(i[int_a * j + int_a + remainder])
+                a -= 1
+                if not a:
+                    break
+            remainder += 1
 
         false_part_sample = []
         number_of_true_false = int(size_of_sample / 2)  # Колличество настоящих и поддельных в 1ой выборке
-        a = number_of_true_false / len(matrices_false)  # если число не целое
-        int_a = int(a)
-        if int_a % 2 == 0:
-            b = int((a - int_a) * len(matrices_false)) + 1
-        else:
-            b = 0
-        for i in matrices_false:
-            if b - 1 < 0:
-                false_part_sample += i[int_a * j: int_a * j + int_a]
-            else:
-                false_part_sample += i[(int_a + 1) * j:(int_a + 1) * j + (int_a + 1)]
-                b -= 1
+        a = number_of_true_false % len(matrices_false)
+        int_a = number_of_true_false // len(matrices_false)
 
+        for i in matrices_false:
+            false_part_sample += i[int_a * j: int_a * j + int_a]
+
+        remainder = 1
+        while a:
+            for i in matrices_false:
+                false_part_sample.append(i[int_a * j + int_a + remainder])
+                a -= 1
+                if not a:
+                    break
+            remainder += 1
+
+        # соединяем и перемешиваем.
         x = true_part_sample + false_part_sample
         y = [1 for i in range(number_of_true_false)] + [0 for i in range(number_of_true_false)]
         x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=p, random_state=42)

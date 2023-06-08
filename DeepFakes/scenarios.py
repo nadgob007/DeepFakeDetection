@@ -172,6 +172,12 @@ def scenario9(initial_params):
     #     scenario5(initial_params, file_read=f'dct{block_size}.txt', file_save=f'special_beta{block_size}.txt')
 
     for block_size in sizes:
+        if block_size == 8:
+            classification_dct(initial_params['path'],
+                               initial_params['number_of_samples'],
+                               initial_params['size_of_sample'],
+                               initial_params['p'], file_read=f'dct.txt',
+                               file_special=f'special_beta.txt')
         classification_dct(initial_params['path'],
                            initial_params['number_of_samples'],
                            initial_params['size_of_sample'],

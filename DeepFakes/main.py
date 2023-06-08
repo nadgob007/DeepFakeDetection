@@ -43,7 +43,7 @@ initial_params7 = {
 # как initial_params5 замени!
 initial_params9 = {
     'count_of_features': 10,                            # до скольки параметров взято
-    'number_of_samples': 5,                             # количество выборок(папок) по size_of_sample фотографий
+    'number_of_samples': 6,                             # количество выборок(папок) по size_of_sample фотографий
     'size_of_sample': 1000,                             # колличество фотографий в выборке (папке)
     'p': 0.8,                                           # Процент тренировочной части выборки
     'path': "E:\\NIRS\\Frequency\\Faces-HQ2\\datasets"  # путь до папки со всеми файлами
@@ -77,9 +77,9 @@ if __name__ == '__main__':
 
     # scenario8(initial_params7)    # Отображение графика бетта коэфициентов с разной величиной окна
 
-    # scenario9(initial_params9)    # 2. Эксперементы с классификацией по выборкам 1000. разным размером окна. коэф 1-10
+    scenario9(initial_params9)    # 2. Эксперементы с классификацией по выборкам 1000. разным размером окна. коэф 1-10
 
-    scenario10(initial_params10)  # test. Эксперементы с классификацией по всем данным 0.6
+    #scenario10(initial_params10)  # test. Эксперементы с классификацией по всем данным 0.6
 
     # Конец
     print('Main выполнен за:', datetime.now() - start_time)
